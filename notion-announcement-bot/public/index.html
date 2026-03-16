@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>채널톡 공지 작성 도우미</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      color: #222;
+      min-height: 100vh;
+    }
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 { font-size: 17px; font-weight: 600; }
+    header span { font-size: 20px; }
+    .container {
+      max-width: 900px;
+      margin: 32px auto;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 700px) {
+      .container { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e5e5e5;
+      padding: 24px;
+    }
+    .card h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: #444;
+      margin-bottom: 6px;
+      margin-top: 14px;
+    }
+    label:first-of-type { margin-top: 0; }
+    input[type="text"], textarea {
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+    input[type="text"]:focus, textarea:focus {
+      border-color: #5865f2;
+    }
+    textarea { min-height: 160px; }
+    #directionInput { min-height: 80px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: #5865f2; color: #fff; width: 100%; justify-content: center; margin-top: 16px; }
+    .btn-primary:hover:not(:disabled) { background: #4752c4; }
+    .btn-publish { background: #12b76a; color: #fff; width: 100%; justify-content: center; margin-top: 12px; }
+    .btn-publish:hover:not(:disabled) { background: #0e9155; }
+    .output-area {
+      grid-column: 1 / -1;
+      display: none;
+    }
+    .output-area.visible { display: block; }
+    #draftOutput {
+      white-space: pre-wrap;
+      font-size: 14px;
+      line-height: 1.7;
+      background: #fafafa;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 200px;
+    }
+    #draftOutput[contenteditable="true"]:focus {
+      outline: 2px solid #5865f2;
+      border-color: transparent;
+    }
+    .edit-hint {
+      font-size: 12px;
+      color: #999;
+      margin-top: 6px;
+    }
+    .status {
+      font-size: 13px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-top: 12px;
+      display: none;
+    }
+    .status.success { background: #ecfdf5; color: #0e9155; display: block; }
+    .status.error { background: #fff1f0; color: #d93025; display: block; }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <span>📢</span>
+    <h1>채널톡 공지 작성 도우미</h1>
+  </header>
+
+  <div class="container">
+    <!-- 입력 영역 -->
+    <div class="card">
+      <h2>공지 정보 입력</h2>
+
+      <label for="notionTitle">노션 제목 (선택)</label>
+      <input type="text" id="notionTitle" placeholder="예: ALF 지원 종료 안내" />
+
+      <label for="contentInput">공지 내용 <span style="color:#e53e3e">*</span></label>
+      <textarea id="contentInput" placeholder="노션 페이지 내용을 여기에 붙여넣으세요."></textarea>
+
+      <label for="directionInput">방향성 / 강조할 사항 (선택)</label>
+      <textarea id="directionInput" placeholder="예: 고객 불안 최소화, 대안 강조 등"></textarea>
+
+      <button class="btn btn-primary" id="generateBtn" onclick="generate()">
+        <span id="generateIcon">✨</span>
+        <span id="generateText">공지 초안 생성</span>
+      </button>
+    </div>
+
+    <!-- 안내 -->
+    <div class="card">
+      <h2>사용 방법</h2>
+      <ol style="padding-left:18px; line-height:2; font-size:14px; color:#555;">
+        <li>노션 페이지 내용을 복사해서 붙여넣기</li>
+        <li><strong>공지 초안 생성</strong> 클릭</li>
+        <li>생성된 초안 직접 수정 가능</li>
+        <li><strong>채널톡 아티클로 발행</strong> 클릭</li>
+      </ol>
+      <div style="margin-top:20px; padding:14px; background:#f0f4ff; border-radius:8px; font-size:13px; color:#444; line-height:1.7;">
+        💡 초안은 <strong>검토용 임시 저장</strong> 상태로 생성됩니다.<br>
+        채널톡 도큐먼트에서 최종 검토 후 발행하세요.
+      </div>
+    </div>
+
+    <!-- 결과 영역 -->
+    <div class="output-area card" id="outputArea">
+      <h2>생성된 공지 초안</h2>
+      <div id="draftOutput" contenteditable="true"></div>
+      <p class="edit-hint">✏️ 위 내용을 직접 수정할 수 있습니다.</p>
+
+      <label for="articleTitle" style="margin-top:20px;">아티클 제목</label>
+      <input type="text" id="articleTitle" placeholder="채널톡 도큐먼트에 표시될 제목" />
+
+      <button class="btn btn-publish" id="publishBtn" onclick="publish()">
+        <span id="publishIcon">📄</span>
+        <span id="publishText">채널톡 아티클로 발행</span>
+      </button>
+
+      <div class="status" id="publishStatus"></div>
+    </div>
+  </div>
+
+  <script>
+    async function generate() {
+      const content = document.getElementById("contentInput").value.trim();
+      if (!content) {
+        alert("내용을 입력해주세요.");
+        return;
+      }
+
+      const btn = document.getElementById("generateBtn");
+      const icon = document.getElementById("generateIcon");
+      const text = document.getElementById("generateText");
+      btn.disabled = true;
+      icon.outerHTML = '<span class="spinner" id="generateIcon"></span>';
+      text.textContent = "생성 중...";
+
+      try {
+        const res = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            notionTitle: document.getElementById("notionTitle").value,
+            content,
+            direction: document.getElementById("directionInput").value,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        const output = document.getElementById("draftOutput");
+        output.textContent = data.draft;
+
+        // 제목 자동 추출 (첫 줄)
+        const firstLine = data.draft.split("\n")[0].replace(/^\[.*?\]\s*/, "").trim();
+        document.getElementById("articleTitle").value = firstLine;
+
+        document.getElementById("outputArea").classList.add("visible");
+        document.getElementById("outputArea").scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch (err) {
+        alert("오류: " + err.message);
+      } finally {
+        btn.disabled = false;
+        document.getElementById("generateIcon").outerHTML = '<span id="generateIcon">✨</span>';
+        document.getElementById("generateText").textContent = "공지 초안 생성";
+      }
+    }
+
+    async function publish() {
+      const title = document.getElementById("articleTitle").value.trim();
+      const content = document.getElementById("draftOutput").innerText.trim();
+      const status = document.getElementById("publishStatus");
+
+      if (!title || !content) {
+        status.className = "status error";
+        status.textContent = "제목과 내용을 확인해주세요.";
+        return;
+      }
+
+      const btn = document.getElementById("publishBtn");
+      const icon = document.getElementById("publishIcon");
+      const text = document.getElementById("publishText");
+      btn.disabled = true;
+      icon.outerHTML = '<span class="spinner" id="publishIcon"></span>';
+      text.textContent = "발행 중...";
+      status.className = "status";
+
+      try {
+        const res = await fetch("/api/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, content }),
+        });
+
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        status.className = "status success";
+        status.textContent = "✅ 채널톡 도큐먼트에 임시 저장되었습니다. 검토 후 발행해주세요.";
+      } catch (err) {
+        status.className = "status error";
+        status.textContent = "❌ 오류: " + err.message;
+      } finally {
+        btn.disabled = false;
+        document.getElementById("publishIcon").outerHTML = '<span id="publishIcon">📄</span>';
+        document.getElementById("publishText").textContent = "채널톡 아티클로 발행";
+      }
+    }
+  </script>
+</body>
+</html>
