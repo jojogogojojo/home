@@ -1,0 +1,14 @@
+{
+  "name": "notion-announcement-bot",
+  "version": "1.0.0",
+  "description": "Notion 공지 요청 → Claude 초안 생성 → 채널톡 전송 자동화",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@notionhq/client": "^2.2.15",
+    "dotenv": "^16.4.5"
+  }
+}
