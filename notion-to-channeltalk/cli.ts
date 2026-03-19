@@ -1,164 +1,235 @@
 #!/usr/bin/env tsx
 /**
- * notion-to-channeltalk CLI
- *
- * 사용법:
- *   npx tsx cli.ts [옵션]
- *   npm run cli -- [옵션]
- *
- * 옵션:
- *   --notion-token <token>      Notion Integration Token (또는 NOTION_TOKEN 환경변수)
- *   --notion-url <url>          Notion 페이지 URL (또는 NOTION_URL 환경변수)
- *   --access-key <key>          Channel Talk Access Key (또는 CT_ACCESS_KEY 환경변수)
- *   --access-secret <secret>    Channel Talk Access Secret (또는 CT_ACCESS_SECRET 환경변수)
- *   --include-sub-pages         하위 페이지 포함 (기본값: false)
- *   --dry-run                   실제 생성 없이 가져올 페이지 목록만 확인
- *
- * 환경변수 파일:
- *   .env 파일에 위 환경변수를 설정하면 자동으로 불러옵니다.
+ * notion-to-channeltalk 인터랙티브 CLI
+ * 실행: npm run cli
  */
 
+import { createInterface } from "readline";
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { fetchNotionPages } from "./src/lib/notion";
 import { createArticle, getSpace } from "./src/lib/channeltalk";
+import type { NotionPage } from "./src/types";
 
-// ──────────────────────────────────────────────
-// .env 파일 로드 (dotenv 없이 직접 파싱)
-// ──────────────────────────────────────────────
+// ── .env 로드 ──────────────────────────────────
 function loadDotEnv() {
   const envPath = resolve(process.cwd(), ".env");
   if (!existsSync(envPath)) return;
-  const lines = readFileSync(envPath, "utf-8").split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    const value = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, "");
-    if (!(key in process.env)) {
-      process.env[key] = value;
-    }
+  for (const line of readFileSync(envPath, "utf-8").split("\n")) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    const eq = t.indexOf("=");
+    if (eq === -1) continue;
+    const k = t.slice(0, eq).trim();
+    const v = t.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
+    if (!(k in process.env)) process.env[k] = v;
   }
 }
 
-// ──────────────────────────────────────────────
-// CLI 인수 파싱
-// ──────────────────────────────────────────────
-function parseArgs(argv: string[]): Record<string, string | boolean> {
-  const args: Record<string, string | boolean> = {};
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (arg.startsWith("--")) {
-      const key = arg.slice(2);
-      const next = argv[i + 1];
-      if (next && !next.startsWith("--")) {
-        args[key] = next;
-        i++;
-      } else {
-        args[key] = true;
-      }
-    }
-  }
-  return args;
-}
-
-// ──────────────────────────────────────────────
-// 출력 유틸
-// ──────────────────────────────────────────────
+// ── 색상 ───────────────────────────────────────
 const c = {
   reset: "\x1b[0m",
   bold: "\x1b[1m",
+  dim: "\x1b[2m",
   green: "\x1b[32m",
   red: "\x1b[31m",
   yellow: "\x1b[33m",
   cyan: "\x1b[36m",
-  gray: "\x1b[90m",
+  blue: "\x1b[34m",
+  magenta: "\x1b[35m",
 };
 
-function log(msg: string) { console.log(msg); }
-function ok(msg: string) { log(`${c.green}✓${c.reset} ${msg}`); }
-function err(msg: string) { log(`${c.red}✗${c.reset} ${msg}`); }
-function info(msg: string) { log(`${c.cyan}→${c.reset} ${msg}`); }
-function warn(msg: string) { log(`${c.yellow}!${c.reset} ${msg}`); }
-function header(msg: string) { log(`\n${c.bold}${msg}${c.reset}`); }
+const ok   = (s: string) => console.log(`${c.green}✓${c.reset} ${s}`);
+const fail = (s: string) => console.log(`${c.red}✗${c.reset} ${s}`);
+const info = (s: string) => console.log(`${c.cyan}→${c.reset} ${s}`);
+const warn = (s: string) => console.log(`${c.yellow}!${c.reset} ${s}`);
+const hr   = () => console.log(`${c.dim}${"─".repeat(55)}${c.reset}`);
+const nl   = () => console.log("");
 
-// ──────────────────────────────────────────────
-// 메인
-// ──────────────────────────────────────────────
+// ── readline 유틸 ──────────────────────────────
+const rl = createInterface({ input: process.stdin, output: process.stdout });
+
+function prompt(question: string, defaultVal = ""): Promise<string> {
+  const hint = defaultVal ? ` ${c.dim}[${defaultVal.slice(0, 20)}${defaultVal.length > 20 ? "…" : ""}]${c.reset}` : "";
+  return new Promise((resolve) => {
+    rl.question(`${c.bold}?${c.reset} ${question}${hint}: `, (ans) => {
+      resolve(ans.trim() || defaultVal);
+    });
+  });
+}
+
+function promptSecret(question: string, defaultVal = ""): Promise<string> {
+  const hint = defaultVal ? ` ${c.dim}[설정됨]${c.reset}` : "";
+  return new Promise((resolve) => {
+    process.stdout.write(`${c.bold}?${c.reset} ${question}${hint}: `);
+    // 입력 숨기기
+    const stdin = process.stdin;
+    let value = "";
+    stdin.setRawMode?.(true);
+    stdin.resume();
+    stdin.setEncoding("utf8");
+
+    if (defaultVal) {
+      // defaultVal 있으면 엔터만 쳐도 사용
+    }
+
+    const onData = (ch: string) => {
+      if (ch === "\n" || ch === "\r" || ch === "\u0004") {
+        stdin.setRawMode?.(false);
+        stdin.pause();
+        stdin.removeListener("data", onData);
+        process.stdout.write("\n");
+        resolve(value || defaultVal);
+      } else if (ch === "\u0003") {
+        process.stdout.write("\n");
+        process.exit();
+      } else if (ch === "\u007f") {
+        value = value.slice(0, -1);
+      } else {
+        value += ch;
+        process.stdout.write("*");
+      }
+    };
+
+    stdin.on("data", onData);
+  });
+}
+
+function promptYN(question: string, defaultYes = true): Promise<boolean> {
+  const hint = defaultYes ? "Y/n" : "y/N";
+  return new Promise((resolve) => {
+    rl.question(`${c.bold}?${c.reset} ${question} ${c.dim}(${hint})${c.reset}: `, (ans) => {
+      const a = ans.trim().toLowerCase();
+      if (!a) resolve(defaultYes);
+      else resolve(a === "y" || a === "yes");
+    });
+  });
+}
+
+// ── 페이지 트리 출력 ───────────────────────────
+function printPageTree(pages: NotionPage[], indent = 0) {
+  for (const p of pages) {
+    const prefix = indent === 0 ? `${c.blue}◆${c.reset}` : `${c.dim}${"  ".repeat(indent)}└─${c.reset}`;
+    const size = p.htmlContent.length;
+    const sizeStr = size > 1024
+      ? `${c.dim}(${(size / 1024).toFixed(1)}KB)${c.reset}`
+      : `${c.dim}(${size}B)${c.reset}`;
+    console.log(`  ${prefix} ${p.title} ${sizeStr}`);
+    if (p.children.length > 0) printPageTree(p.children, indent + 1);
+  }
+}
+
+// ── 메인 ───────────────────────────────────────
 async function main() {
   loadDotEnv();
 
-  const args = parseArgs(process.argv.slice(2));
+  console.clear();
+  console.log(`${c.bold}${c.magenta}╔══════════════════════════════════════════════╗${c.reset}`);
+  console.log(`${c.bold}${c.magenta}║   Notion → Channel Talk 아티클 동기화 CLI   ║${c.reset}`);
+  console.log(`${c.bold}${c.magenta}╚══════════════════════════════════════════════╝${c.reset}`);
+  nl();
 
-  const notionToken =
-    (args["notion-token"] as string) || process.env.NOTION_TOKEN || "";
-  const notionUrl =
-    (args["notion-url"] as string) || process.env.NOTION_URL || "";
-  const accessKey =
-    (args["access-key"] as string) || process.env.CT_ACCESS_KEY || "";
-  const accessSecret =
-    (args["access-secret"] as string) || process.env.CT_ACCESS_SECRET || "";
-  const includeSubPages = !!args["include-sub-pages"];
-  const dryRun = !!args["dry-run"];
+  // ── Step 1: 자격증명 입력 ──
+  console.log(`${c.bold}[1/4] 자격증명 입력${c.reset}`);
+  hr();
 
-  // ── 입력 검증 ──
-  const missing: string[] = [];
-  if (!notionToken) missing.push("NOTION_TOKEN (--notion-token)");
-  if (!notionUrl) missing.push("NOTION_URL (--notion-url)");
-  if (!accessKey) missing.push("CT_ACCESS_KEY (--access-key)");
-  if (!accessSecret) missing.push("CT_ACCESS_SECRET (--access-secret)");
+  const notionToken = await promptSecret(
+    "Notion Integration Token",
+    process.env.NOTION_TOKEN
+  );
+  const notionUrl = await prompt(
+    "Notion 페이지 URL",
+    process.env.NOTION_URL
+  );
+  const accessKey = await prompt(
+    "Channel Talk Access Key",
+    process.env.CT_ACCESS_KEY
+  );
+  const accessSecret = await promptSecret(
+    "Channel Talk Access Secret",
+    process.env.CT_ACCESS_SECRET
+  );
 
-  if (missing.length > 0) {
-    err("필수 값이 없습니다:");
-    for (const m of missing) log(`  ${c.gray}-${c.reset} ${m}`);
-    log(`\n${c.gray}사용법: npm run cli -- --notion-token <token> --notion-url <url> --access-key <key> --access-secret <secret>${c.reset}`);
-    log(`${c.gray}또는 .env 파일에 NOTION_TOKEN, NOTION_URL, CT_ACCESS_KEY, CT_ACCESS_SECRET 를 설정하세요.${c.reset}`);
+  if (!notionToken || !notionUrl || !accessKey || !accessSecret) {
+    fail("필수 값이 입력되지 않았습니다.");
     process.exit(1);
   }
 
-  header("Notion → Channel Talk 동기화");
-  log(`${c.gray}${"─".repeat(50)}${c.reset}`);
+  nl();
 
-  // ── Channel Talk 인증 확인 ──
-  info("Channel Talk 인증 확인 중...");
+  // ── Step 2: Channel Talk 인증 확인 ──
+  console.log(`${c.bold}[2/4] Channel Talk 연결 확인${c.reset}`);
+  hr();
+  info("인증 확인 중...");
+  let spaceName = "";
   try {
     const space = await getSpace(accessKey, accessSecret);
-    ok(`스페이스: ${c.bold}${space.name}${c.reset} (${space.id})`);
+    spaceName = space.name;
+    ok(`스페이스: ${c.bold}${space.name}${c.reset} ${c.dim}(${space.id})${c.reset}`);
   } catch (e: unknown) {
-    err(`Channel Talk 인증 실패: ${e instanceof Error ? e.message : e}`);
+    fail(`Channel Talk 인증 실패: ${e instanceof Error ? e.message : e}`);
+    rl.close();
     process.exit(1);
   }
+  nl();
 
-  // ── Notion 페이지 가져오기 ──
+  // ── Step 3: 옵션 선택 ──
+  console.log(`${c.bold}[3/4] 옵션 선택${c.reset}`);
+  hr();
+  const includeSubPages = await promptYN("하위 페이지도 포함할까요?", true);
+  nl();
+
+  // ── Step 4: 미리보기 ──
+  console.log(`${c.bold}[4/4] 미리보기${c.reset}`);
+  hr();
   info(`Notion 페이지 가져오는 중${includeSubPages ? " (하위 페이지 포함)" : ""}...`);
-  let pages;
+
+  let allPages: NotionPage[];
   try {
-    pages = await fetchNotionPages(notionUrl, notionToken, includeSubPages);
+    const rootPages = await fetchNotionPages(notionUrl, notionToken, includeSubPages);
+    allPages = rootPages;
   } catch (e: unknown) {
-    err(`Notion 가져오기 실패: ${e instanceof Error ? e.message : e}`);
+    fail(`Notion 가져오기 실패: ${e instanceof Error ? e.message : e}`);
+    rl.close();
     process.exit(1);
   }
 
-  ok(`${pages.length}개 페이지 발견`);
-  for (const p of pages) {
-    log(`  ${c.gray}·${c.reset} ${p.title}`);
-  }
+  // 플랫 배열 (루트 + 모든 하위)
+  const flatten = (pages: NotionPage[]): NotionPage[] =>
+    pages.flatMap((p) => [p, ...flatten(p.children)]);
+  const flatPages = flatten(allPages);
 
-  if (dryRun) {
-    warn("--dry-run 모드: 실제 아티클은 생성되지 않습니다.");
+  nl();
+  console.log(`${c.bold}생성될 아티클 목록 (총 ${c.cyan}${flatPages.length}${c.reset}${c.bold}개)${c.reset}`);
+  hr();
+  printPageTree(allPages);
+  nl();
+
+  console.log(`${c.dim}스페이스: ${spaceName}${c.reset}`);
+  nl();
+
+  const doSync = await promptYN(
+    `${c.bold}위 ${flatPages.length}개 아티클을 Channel Talk에 생성할까요?${c.reset}`,
+    true
+  );
+
+  if (!doSync) {
+    warn("취소되었습니다.");
+    rl.close();
     return;
   }
 
-  // ── 아티클 생성 ──
-  header("아티클 생성 중");
-  log(`${c.gray}${"─".repeat(50)}${c.reset}`);
+  rl.close();
+
+  // ── 실제 동기화 ──
+  nl();
+  console.log(`${c.bold}아티클 생성 중...${c.reset}`);
+  hr();
 
   let successCount = 0;
   let failCount = 0;
 
-  for (const page of pages) {
+  for (const page of flatPages) {
     try {
       const article = await createArticle(
         accessKey,
@@ -167,22 +238,24 @@ async function main() {
         page.htmlContent
       );
       ok(`${page.title}`);
-      if (article.webUrl || article.url) {
-        log(`  ${c.gray}${article.webUrl || article.url}${c.reset}`);
-      }
+      const url = article.webUrl || article.url;
+      if (url) console.log(`  ${c.dim}${url}${c.reset}`);
       successCount++;
     } catch (e: unknown) {
-      err(`${page.title}`);
-      log(`  ${c.red}${e instanceof Error ? e.message : e}${c.reset}`);
+      fail(`${page.title}`);
+      console.log(`  ${c.red}${e instanceof Error ? e.message : e}${c.reset}`);
       failCount++;
     }
   }
 
-  // ── 결과 요약 ──
-  header("완료");
-  log(`${c.gray}${"─".repeat(50)}${c.reset}`);
-  log(`성공: ${c.green}${successCount}${c.reset}개  /  실패: ${c.red}${failCount}${c.reset}개`);
-  log("");
+  nl();
+  hr();
+  console.log(
+    `${c.bold}완료!${c.reset}  ` +
+    `성공 ${c.green}${successCount}${c.reset}개  /  ` +
+    `실패 ${failCount > 0 ? c.red : c.dim}${failCount}${c.reset}개`
+  );
+  nl();
 }
 
 main().catch((e) => {
