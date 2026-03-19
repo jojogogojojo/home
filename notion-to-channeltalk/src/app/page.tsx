@@ -8,29 +8,66 @@ interface SpaceInfo {
   name: string;
 }
 
+const card: React.CSSProperties = {
+  background: "#fff",
+  border: "1px solid #e5e5e5",
+  borderRadius: 12,
+  padding: 18,
+  marginBottom: 10,
+};
+
+const cardTitle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  color: "#999",
+  letterSpacing: "0.07em",
+  textTransform: "uppercase",
+  marginBottom: 14,
+};
+
+const fieldName: React.CSSProperties = {
+  fontSize: 12,
+  color: "#555",
+  fontWeight: 500,
+  marginBottom: 5,
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  background: "#fafafa",
+  border: "1px solid #e0e0e0",
+  borderRadius: 8,
+  color: "#111",
+  fontFamily: "inherit",
+  fontSize: 13,
+  padding: "9px 12px",
+  outline: "none",
+  boxSizing: "border-box",
+};
+
 export default function Home() {
-  // 폼 상태
-  const [notionUrl, setNotionUrl] = useState("");
   const [notionToken, setNotionToken] = useState("");
-  const [includeSubPages, setIncludeSubPages] = useState(false);
+  const [notionUrl, setNotionUrl] = useState("");
   const [accessKey, setAccessKey] = useState("");
   const [accessSecret, setAccessSecret] = useState("");
+  const [visibility, setVisibility] = useState<"public" | "private">("public");
+  const [includeSubPages, setIncludeSubPages] = useState(false);
+  const [translateEn, setTranslateEn] = useState(false);
+  const [translateJp, setTranslateJp] = useState(false);
 
-  // 스페이스 검증 상태
   const [spaceInfo, setSpaceInfo] = useState<SpaceInfo | null>(null);
   const [spaceError, setSpaceError] = useState("");
   const [spaceLoading, setSpaceLoading] = useState(false);
 
-  // 동기화 상태
   const [syncing, setSyncing] = useState(false);
   const [results, setResults] = useState<SyncResult[] | null>(null);
   const [syncError, setSyncError] = useState("");
 
-  async function verifySpace() {
+  async function tryLoadSpace() {
+    if (!accessKey || !accessSecret) return;
     setSpaceLoading(true);
     setSpaceInfo(null);
     setSpaceError("");
-
     try {
       const res = await fetch("/api/spaces", {
         method: "POST",
@@ -51,7 +88,6 @@ export default function Home() {
     setSyncing(true);
     setResults(null);
     setSyncError("");
-
     try {
       const res = await fetch("/api/sync", {
         method: "POST",
@@ -78,187 +114,371 @@ export default function Home() {
     notionUrl && notionToken && accessKey && accessSecret && spaceInfo && !syncing;
 
   return (
-    <main className="max-w-2xl mx-auto py-12 px-4">
-      {/* 헤더 */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Notion → Channel Talk 아티클
+    <main
+      style={{
+        background: "#f5f5f5",
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "32px 16px",
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        fontSize: 14,
+        color: "#111",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 520 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
+          Notion → Channel Talk
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Notion 페이지를 Channel Talk 도큐먼트 스페이스에 아티클로 내보냅니다
+        <p style={{ fontSize: 13, color: "#888", marginBottom: 24, lineHeight: 1.6 }}>
+          Notion 페이지 링크를 넣으면 Channel Talk 도큐먼트 스페이스에
+          <br />
+          아티클로 자동 변환해 드립니다. 번역도 함께 생성할 수 있어요.
         </p>
-      </div>
 
-      <div className="space-y-6">
-        {/* Notion 설정 */}
-        <section className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-          <h2 className="font-semibold text-gray-800">Notion</h2>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              페이지 URL
-            </label>
-            <input
-              type="url"
-              value={notionUrl}
-              onChange={(e) => setNotionUrl(e.target.value)}
-              placeholder="https://www.notion.so/workspace/Title-abc123..."
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Integration Token
-            </label>
-            <input
-              type="password"
-              value={notionToken}
-              onChange={(e) => setNotionToken(e.target.value)}
-              placeholder="secret_xxxxxxxxxxxx"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="mt-1 text-xs text-gray-400">
-              notion.so/my-integrations에서 발급 후 대상 페이지에 연결 필요
-            </p>
-          </div>
-
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={includeSubPages}
-              onChange={(e) => setIncludeSubPages(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-700">
-              하위 페이지도 함께 가져오기
-              <span className="ml-1 text-gray-400">(각 페이지당 아티클 1개 생성)</span>
-            </span>
-          </label>
-        </section>
-
-        {/* Channel Talk 설정 */}
-        <section className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-          <h2 className="font-semibold text-gray-800">Channel Talk</h2>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Access Key
-              </label>
+        {/* Notion */}
+        <div style={card}>
+          <div style={cardTitle}>Notion</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <label>
+              <div style={fieldName}>Integration Token</div>
               <input
+                style={inputStyle}
                 type="password"
+                placeholder="secret_xxxxxxxxxx"
+                value={notionToken}
+                onChange={(e) => setNotionToken(e.target.value)}
+              />
+            </label>
+            <label>
+              <div style={fieldName}>페이지 URL</div>
+              <input
+                style={inputStyle}
+                type="url"
+                placeholder="notion.so/your-page"
+                value={notionUrl}
+                onChange={(e) => setNotionUrl(e.target.value)}
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* Channel Talk */}
+        <div style={card}>
+          <div style={cardTitle}>Channel Talk</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <label>
+              <div style={fieldName}>Access Key</div>
+              <input
+                style={inputStyle}
+                type="password"
+                placeholder="key_xxxxxxxx"
                 value={accessKey}
                 onChange={(e) => {
                   setAccessKey(e.target.value);
                   setSpaceInfo(null);
                 }}
-                placeholder="Access Key"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onBlur={tryLoadSpace}
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Access Secret
-              </label>
+            </label>
+            <label>
+              <div style={fieldName}>Access Secret</div>
               <input
+                style={inputStyle}
                 type="password"
+                placeholder="secret_xxxxxxxx"
                 value={accessSecret}
                 onChange={(e) => {
                   setAccessSecret(e.target.value);
                   setSpaceInfo(null);
                 }}
-                placeholder="Access Secret"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onBlur={tryLoadSpace}
               />
+            </label>
+          </div>
+          {(spaceLoading || spaceInfo || spaceError) && (
+            <div style={{ marginTop: 10, fontSize: 12 }}>
+              {spaceLoading && <span style={{ color: "#888" }}>스페이스 확인 중...</span>}
+              {spaceInfo && (
+                <span
+                  style={{
+                    color: "#2a7a2a",
+                    background: "#edfaed",
+                    border: "1px solid #b6e8b6",
+                    padding: "3px 10px",
+                    borderRadius: 20,
+                  }}
+                >
+                  ✓ {spaceInfo.name}
+                </span>
+              )}
+              {spaceError && <span style={{ color: "#c0392b" }}>{spaceError}</span>}
+            </div>
+          )}
+        </div>
+
+        {/* 아티클 설정 */}
+        <div style={card}>
+          <div style={cardTitle}>아티클 설정</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+            <label>
+              <div style={fieldName}>스페이스</div>
+              <select style={{ ...inputStyle, appearance: "none" as const }}>
+                {spaceInfo ? (
+                  <option value={spaceInfo.id}>{spaceInfo.name}</option>
+                ) : (
+                  <option disabled>키 입력 후 로드</option>
+                )}
+              </select>
+            </label>
+            <label>
+              <div style={fieldName}>작성자</div>
+              <select style={{ ...inputStyle, appearance: "none" as const }}>
+                <option>기본 작성자</option>
+              </select>
+            </label>
+          </div>
+          <div>
+            <div style={{ ...fieldName, marginBottom: 8 }}>공개 여부</div>
+            <div
+              style={{
+                display: "flex",
+                border: "1px solid #e0e0e0",
+                borderRadius: 8,
+                overflow: "hidden",
+              }}
+            >
+              {(["public", "private"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setVisibility(v)}
+                  style={{
+                    flex: 1,
+                    padding: "10px 0",
+                    fontSize: 14,
+                    fontWeight: visibility === v ? 700 : 500,
+                    color: visibility === v ? "#111" : "#aaa",
+                    background: visibility === v ? "#fff" : "#fafafa",
+                    border: "none",
+                    borderRight: v === "public" ? "1px solid #e0e0e0" : "none",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {v === "public" ? "🌐 공개" : "🔒 비공개"}
+                </button>
+              ))}
             </div>
           </div>
+        </div>
 
-          <p className="text-xs text-gray-400">
-            Channel Desk &gt; 설정 &gt; API Key 관리에서 발급 (스페이스별)
-          </p>
-
-          {/* 스페이스 확인 */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={verifySpace}
-              disabled={!accessKey || !accessSecret || spaceLoading}
-              className="text-sm px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
-            >
-              {spaceLoading ? "확인 중..." : "스페이스 확인"}
-            </button>
-
-            {spaceInfo && (
-              <span className="text-sm text-green-700 bg-green-50 px-3 py-1 rounded-full border border-green-200">
-                {spaceInfo.name}
-              </span>
-            )}
-            {spaceError && (
-              <span className="text-sm text-red-600">{spaceError}</span>
-            )}
+        {/* 옵션 */}
+        <div style={card}>
+          <div style={cardTitle}>옵션</div>
+          <div>
+            {[
+              {
+                label: "하위 페이지 포함",
+                desc: "연결된 모든 하위 페이지도 함께 아티클로 변환",
+                checked: includeSubPages,
+                onChange: setIncludeSubPages,
+                badge: null,
+              },
+              {
+                label: "영어 번역 생성",
+                desc: "원본과 함께 영어(English) 아티클 자동 생성",
+                checked: translateEn,
+                onChange: setTranslateEn,
+                badge: "Claude AI",
+              },
+              {
+                label: "일본어 번역 생성",
+                desc: "원본과 함께 일본어(日本語) 아티클 자동 생성",
+                checked: translateJp,
+                onChange: setTranslateJp,
+                badge: "Claude AI",
+              },
+            ].map((item, i, arr) => (
+              <div
+                key={item.label}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "12px 0",
+                  borderBottom: i < arr.length - 1 ? "1px solid #f0f0f0" : "none",
+                  gap: 12,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 2 }}>
+                    {item.label}
+                    {item.badge && (
+                      <span
+                        style={{
+                          display: "inline-block",
+                          background: "#f0f4ff",
+                          border: "1px solid #d0daff",
+                          color: "#5a7af0",
+                          fontSize: 10,
+                          padding: "1px 6px",
+                          borderRadius: 4,
+                          marginLeft: 6,
+                          fontWeight: 600,
+                          verticalAlign: "middle",
+                        }}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#999" }}>{item.desc}</div>
+                </div>
+                <Toggle checked={item.checked} onChange={item.onChange} />
+              </div>
+            ))}
           </div>
-        </section>
+        </div>
 
-        {/* 실행 버튼 */}
+        {/* 버튼 */}
         <button
           onClick={handleSync}
           disabled={!canSync}
-          className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          style={{
+            width: "100%",
+            background: canSync ? "#111" : "#ccc",
+            color: "#fff",
+            border: "none",
+            borderRadius: 10,
+            fontFamily: "inherit",
+            fontSize: 15,
+            fontWeight: 700,
+            padding: "14px",
+            cursor: canSync ? "pointer" : "not-allowed",
+            marginTop: 4,
+          }}
         >
           {syncing ? "아티클 생성 중..." : "아티클 생성 시작"}
         </button>
 
         {/* 에러 */}
         {syncError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+          <div
+            style={{
+              background: "#fff5f5",
+              border: "1px solid #fcc",
+              color: "#c0392b",
+              borderRadius: 10,
+              padding: "12px 16px",
+              fontSize: 13,
+              marginTop: 10,
+            }}
+          >
             {syncError}
           </div>
         )}
 
         {/* 결과 */}
         {results && (
-          <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-800">결과</h2>
-              <span className="text-xs text-gray-500">
-                {results.filter((r) => r.status === "success").length} /{" "}
-                {results.length} 성공
+          <div style={{ ...card, marginTop: 10 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 12,
+              }}
+            >
+              <div style={cardTitle}>결과</div>
+              <span style={{ fontSize: 12, color: "#888" }}>
+                {results.filter((r) => r.status === "success").length} / {results.length} 성공
               </span>
             </div>
-            <ul className="divide-y divide-gray-100">
+            <div>
               {results.map((r, i) => (
-                <li key={i} className="px-5 py-3 flex items-start gap-3">
-                  <span
-                    className={`mt-0.5 text-lg ${
-                      r.status === "success" ? "text-green-500" : "text-red-400"
-                    }`}
-                  >
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    padding: "10px 0",
+                    borderBottom:
+                      i < results.length - 1 ? "1px solid #f0f0f0" : "none",
+                  }}
+                >
+                  <span style={{ color: r.status === "success" ? "#2a7a2a" : "#c0392b", fontSize: 16 }}>
                     {r.status === "success" ? "✓" : "✗"}
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-800 truncate">
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {r.pageTitle}
-                    </p>
+                    </div>
                     {r.status === "success" && r.articleUrl && (
                       <a
                         href={r.articleUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:underline truncate block"
+                        style={{ fontSize: 12, color: "#4a90e2", textDecoration: "none" }}
                       >
                         {r.articleUrl}
                       </a>
                     )}
                     {r.status === "error" && (
-                      <p className="text-xs text-red-500">{r.error}</p>
+                      <div style={{ fontSize: 12, color: "#c0392b" }}>{r.error}</div>
                     )}
                   </div>
-                </li>
+                </div>
               ))}
-            </ul>
-          </section>
+            </div>
+          </div>
         )}
       </div>
     </main>
+  );
+}
+
+function Toggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div
+      onClick={() => onChange(!checked)}
+      style={{
+        position: "relative",
+        width: 44,
+        height: 24,
+        flexShrink: 0,
+        cursor: "pointer",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: checked ? "#4a90e2" : "#e5e5e5",
+          borderRadius: 12,
+          transition: "background 0.2s",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: checked ? 23 : 3,
+          top: 3,
+          width: 18,
+          height: 18,
+          background: "#fff",
+          borderRadius: "50%",
+          transition: "left 0.2s",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+        }}
+      />
+    </div>
   );
 }
