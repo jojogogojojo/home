@@ -4,7 +4,7 @@ import type {
   PageObjectResponse,
   RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
-import { NotionPage } from "@/types";
+import { NotionPage } from "../types";
 
 /** Notion URL에서 페이지 ID 추출 */
 export function extractPageId(url: string): string {
