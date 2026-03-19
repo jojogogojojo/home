@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notion → Channel Talk 아티클</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <main class="max-w-2xl mx-auto py-12 px-4">
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold text-gray-900">Notion → Channel Talk 아티클</h1>
+      <p class="mt-1 text-sm text-gray-500">Notion 페이지를 Channel Talk 도큐먼트 스페이스에 아티클로 내보냅니다</p>
+    </div>
+
+    <div class="space-y-6">
+      <!-- Notion 설정 -->
+      <section class="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+        <h2 class="font-semibold text-gray-800">Notion</h2>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">페이지 URL</label>
+          <input type="url" id="notionUrl" placeholder="https://www.notion.so/workspace/Title-abc123..."
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Integration Token</label>
+          <input type="password" id="notionToken" placeholder="secret_xxxxxxxxxxxx"
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <p class="mt-1 text-xs text-gray-400">notion.so/my-integrations에서 발급 후 대상 페이지에 연결 필요</p>
+        </div>
+
+        <label class="flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" id="includeSubPages" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+          <span class="text-sm text-gray-700">
+            하위 페이지도 함께 가져오기
+            <span class="ml-1 text-gray-400">(각 페이지당 아티클 1개 생성)</span>
+          </span>
+        </label>
+      </section>
+
+      <!-- Channel Talk 설정 -->
+      <section class="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+        <h2 class="font-semibold text-gray-800">Channel Talk</h2>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Access Key</label>
+            <input type="password" id="accessKey" placeholder="Access Key"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Access Secret</label>
+            <input type="password" id="accessSecret" placeholder="Access Secret"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+
+        <p class="text-xs text-gray-400">Channel Desk &gt; 설정 &gt; API Key 관리에서 발급 (스페이스별)</p>
+
+        <div class="flex items-center gap-3">
+          <button onclick="verifySpace()"
+            class="text-sm px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition">
+            스페이스 확인
+          </button>
+          <span id="spaceInfo" class="hidden text-sm text-green-700 bg-green-50 px-3 py-1 rounded-full border border-green-200"></span>
+          <span id="spaceError" class="hidden text-sm text-red-600"></span>
+        </div>
+      </section>
+
+      <!-- 실행 버튼 -->
+      <button id="syncBtn" onclick="handleSync()"
+        class="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition">
+        아티클 생성 시작
+      </button>
+
+      <!-- 에러 -->
+      <div id="syncError" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm"></div>
+
+      <!-- 결과 -->
+      <section id="results" class="hidden bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+          <h2 class="font-semibold text-gray-800">결과</h2>
+          <span id="resultCount" class="text-xs text-gray-500"></span>
+        </div>
+        <ul id="resultList" class="divide-y divide-gray-100"></ul>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    function verifySpace() {
+      const key = document.getElementById('accessKey').value;
+      const secret = document.getElementById('accessSecret').value;
+      if (!key || !secret) return;
+      // UI 미리보기용 - 실제 API 없이 동작 시뮬레이션
+      document.getElementById('spaceInfo').textContent = '내 스페이스 (미리보기)';
+      document.getElementById('spaceInfo').classList.remove('hidden');
+      document.getElementById('spaceError').classList.add('hidden');
+    }
+
+    function handleSync() {
+      const url = document.getElementById('notionUrl').value;
+      const token = document.getElementById('notionToken').value;
+      if (!url || !token) {
+        document.getElementById('syncError').textContent = 'Notion URL과 Token을 입력해주세요.';
+        document.getElementById('syncError').classList.remove('hidden');
+        return;
+      }
+      // 미리보기용 결과 시뮬레이션
+      document.getElementById('syncError').classList.add('hidden');
+      const list = document.getElementById('resultList');
+      list.innerHTML = `
+        <li class="px-5 py-3 flex items-start gap-3">
+          <span class="mt-0.5 text-lg text-green-500">✓</span>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-gray-800">예시 페이지 제목</p>
+            <a class="text-xs text-blue-600 hover:underline" href="#">https://desk.channel.io/article/example</a>
+          </div>
+        </li>
+      `;
+      document.getElementById('resultCount').textContent = '1 / 1 성공';
+      document.getElementById('results').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
