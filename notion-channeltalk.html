@@ -433,7 +433,9 @@ async function loadCtMeta() {
     authSel.innerHTML = '<option value="">— 없음 —</option>';
     (d.members || []).forEach(m => {
       const o = document.createElement('option');
-      o.value = m.id; o.textContent = m.name || m.email || m.id;
+      const profile = m.profile;
+      const displayName = (profile ? (typeof profile === 'object' ? (profile.ko?.name || profile.en?.name || Object.values(profile)[0]?.name) : profile) : null) || m.name || m.id;
+      o.value = m.id; o.textContent = displayName;
       authSel.appendChild(o);
     });
   } catch (_) {}
@@ -445,6 +447,7 @@ async function syncNow() {
   const accessKey = document.getElementById('ctKey').value.trim();
   const accessSecret = document.getElementById('ctSecret').value.trim();
   const categoryId = document.getElementById('categorySelect').value;
+  const authorId = document.getElementById('authorSelect').value;
   const visibility = document.querySelector('input[name="vis"]:checked')?.value || 'public';
   const includeSubpages = document.getElementById('optSubpages').checked;
   const translateEn = document.getElementById('optEn').checked;
@@ -464,7 +467,7 @@ async function syncNow() {
   try {
     const d = await post('/api/sync', {
       notionToken, pageUrl, accessKey, accessSecret,
-      categoryId, visibility, includeSubpages,
+      categoryId, authorId, visibility, includeSubpages,
       translateEn, translateJa, claudeApiKey,
     });
 
