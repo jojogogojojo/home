@@ -228,7 +228,7 @@ app.post('/api/channeltalk/test', async (req, res) => {
   if (!accessKey || !accessSecret) return res.status(400).json({ error: 'Key와 Secret이 필요합니다.' });
   try {
     const client = ctClient(accessKey, accessSecret);
-    const r = await client.get('/open/v5/channels');
+    const r = await client.get('/open/v5/channel');
     res.json({ ok: true, message: `연결 성공: ${r.data?.channel?.name || '채널'}` });
   } catch (err) {
     res.status(400).json({ error: err.response?.data?.message || err.message });
