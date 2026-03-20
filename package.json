@@ -1,0 +1,15 @@
+{
+  "name": "notion-channeltalk",
+  "version": "1.0.0",
+  "description": "Notion → Channel Talk 아티클 연동",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "cors": "^2.8.5"
+  }
+}

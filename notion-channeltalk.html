@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notion → Channel Talk</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #f5f5f5;
+    color: #111;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+  .wrap { width: 100%; max-width: 560px; }
+
+  h1 { font-size: 20px; font-weight: 700; color: #111; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #888; margin-bottom: 24px; line-height: 1.6; }
+
+  .card {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 10px;
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #999;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  label.field { display: block; }
+  .field-name { font-size: 12px; color: #555; margin-bottom: 5px; font-weight: 500; }
+
+  input, select {
+    width: 100%;
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    color: #111;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 9px 12px;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: border-color 0.15s;
+  }
+  input::placeholder { color: #bbb; }
+  input:focus, select:focus { border-color: #4a90e2; box-shadow: 0 0 0 3px rgba(74,144,226,0.1); }
+
+  .btn-row { display: flex; gap: 8px; margin-top: 12px; }
+  .btn-test {
+    background: #f0f0f0;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    color: #555;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-test:hover { background: #e8e8e8; }
+
+  .status {
+    margin-top: 8px;
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    display: none;
+    line-height: 1.5;
+  }
+  .status.ok  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; display: block; }
+  .status.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; display: block; }
+  .status.ing { background: #f0f4ff; color: #3730a3; border: 1px solid #c7d2fe; display: block; }
+
+  /* visibility toggle */
+  .vis-wrap { margin-top: 14px; }
+  .vis-label { font-size: 12px; color: #555; margin-bottom: 6px; font-weight: 500; }
+  .vis-group { display: flex; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; }
+  .vis-item { flex: 1; }
+  .vis-item input { display: none; }
+  .vis-item label {
+    display: block; text-align: center;
+    padding: 10px 0; font-size: 14px; font-weight: 500;
+    color: #aaa; cursor: pointer; transition: all 0.15s;
+    background: #fafafa;
+  }
+  .vis-item:first-child label { border-right: 1px solid #e0e0e0; }
+  .vis-item input:checked + label { background: #fff; color: #111; font-weight: 700; }
+
+  /* preview */
+  .preview-card {
+    background: #fff; border: 1px solid #e5e5e5;
+    border-radius: 12px; padding: 18px;
+    margin-bottom: 10px; display: none;
+  }
+  .preview-card.on { display: block; }
+  .preview-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .preview-label { font-size: 11px; font-weight: 600; color: #999; letter-spacing: 0.07em; text-transform: uppercase; }
+  .preview-close {
+    font-size: 12px; background: #f5f5f5; border: 1px solid #e0e0e0;
+    border-radius: 6px; color: #555; font-family: inherit;
+    font-weight: 600; padding: 4px 10px; cursor: pointer;
+  }
+  .preview-art-title { font-size: 18px; font-weight: 700; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #f0f0f0; }
+  .preview-body {
+    font-size: 14px; line-height: 1.7; color: #333;
+    max-height: 320px; overflow-y: auto;
+  }
+  .preview-body h1 { font-size: 20px; margin: 14px 0 6px; }
+  .preview-body h2 { font-size: 17px; margin: 12px 0 5px; }
+  .preview-body h3 { font-size: 15px; margin: 10px 0 4px; }
+  .preview-body p  { margin: 5px 0; }
+  .preview-body ul, .preview-body ol { margin: 6px 0 6px 20px; }
+  .preview-body li { margin: 3px 0; }
+  .preview-body blockquote { border-left: 3px solid #ddd; margin: 8px 0; padding: 4px 12px; color: #666; }
+  .preview-body code { background: #f5f5f5; padding: 1px 5px; border-radius: 4px; font-size: 12px; font-family: monospace; }
+  .preview-body pre { background: #f5f5f5; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 8px 0; }
+  .preview-body pre code { background: none; padding: 0; }
+  .preview-body img { max-width: 100%; border-radius: 8px; margin: 8px 0; }
+  .preview-body hr { border: none; border-top: 1px solid #eee; margin: 10px 0; }
+  .preview-body figure { margin: 8px 0; }
+  .preview-body figcaption { font-size: 12px; color: #999; margin-top: 4px; }
+  .preview-body details { margin: 6px 0; }
+  .preview-body summary { cursor: pointer; font-weight: 500; }
+
+  .btn {
+    width: 100%;
+    background: #111; color: #fff; border: none;
+    border-radius: 10px; font-family: inherit;
+    font-size: 15px; font-weight: 700;
+    padding: 14px; cursor: pointer;
+    transition: background 0.15s; margin-top: 4px;
+  }
+  .btn:hover { background: #333; }
+  .btn:disabled { background: #999; cursor: default; }
+
+  .result {
+    margin-top: 12px; padding: 14px;
+    border-radius: 10px; font-size: 14px;
+    font-weight: 500; display: none; line-height: 1.5;
+  }
+  .result.ok  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; display: block; }
+  .result.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; display: block; }
+
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .cors-note {
+    background: #fffbeb; border: 1px solid #fde68a;
+    border-radius: 8px; padding: 10px 12px;
+    font-size: 12px; color: #92400e; line-height: 1.5;
+    margin-top: 8px; display: none;
+  }
+  .cors-note.on { display: block; }
+  .cors-note code { background: rgba(0,0,0,0.07); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Notion → Channel Talk</h1>
+  <p class="sub">Notion 페이지를 Channel Talk 헬프센터 아티클로 변환합니다.<br>API 키를 입력하고 미리보기 후 아티클을 생성하세요.</p>
+
+  <!-- ── Notion ── -->
+  <div class="card">
+    <div class="card-title">Notion</div>
+    <div class="field-pair">
+      <label class="field">
+        <div class="field-name">Integration Token</div>
+        <input id="notionToken" type="password" placeholder="secret_xxxxxxxxxx"/>
+      </label>
+      <label class="field">
+        <div class="field-name">페이지 URL</div>
+        <input id="notionUrl" type="url" placeholder="notion.so/your-page"/>
+      </label>
+    </div>
+    <div class="btn-row">
+      <button class="btn-test" onclick="testNotion()">🔍 연결 테스트</button>
+      <button class="btn-test" id="previewBtn" onclick="previewPage()" style="display:none;">👁 미리보기</button>
+    </div>
+    <div id="notionStatus" class="status"></div>
+    <div id="corsNote" class="cors-note">
+      ⚠️ CORS 오류: 브라우저에서 Notion API 직접 호출이 차단될 수 있습니다.<br>
+      해결 방법: 터미널에서 <code>npm install &amp;&amp; node server.js</code> 실행 후 <code>localhost:3000</code>에서 사용하세요.
+    </div>
+  </div>
+
+  <!-- ── Channel Talk ── -->
+  <div class="card">
+    <div class="card-title">Channel Talk</div>
+    <div class="field-pair">
+      <label class="field">
+        <div class="field-name">Access Key</div>
+        <input id="ctKey" type="password" placeholder="key_xxxxxxxx"/>
+      </label>
+      <label class="field">
+        <div class="field-name">Access Secret</div>
+        <input id="ctSecret" type="password" placeholder="secret_xxxxxxxx"/>
+      </label>
+    </div>
+    <div class="btn-row">
+      <button class="btn-test" onclick="testChannelTalk()">🔍 연결 테스트</button>
+    </div>
+    <div id="ctStatus" class="status"></div>
+  </div>
+
+  <!-- ── 동기화 설정 ── -->
+  <div class="card">
+    <div class="card-title">동기화 설정</div>
+    <label class="field">
+      <div class="field-name">카테고리 (선택)</div>
+      <select id="categorySelect">
+        <option value="">— 카테고리 없음 —</option>
+      </select>
+    </label>
+    <div class="vis-wrap">
+      <div class="vis-label">공개 여부</div>
+      <div class="vis-group">
+        <div class="vis-item">
+          <input type="radio" name="vis" id="pub" value="public" checked/>
+          <label for="pub">🌐 공개</label>
+        </div>
+        <div class="vis-item">
+          <input type="radio" name="vis" id="priv" value="private"/>
+          <label for="priv">🔒 비공개</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 미리보기 ── -->
+  <div class="preview-card" id="previewCard">
+    <div class="preview-header">
+      <span class="preview-label">미리보기</span>
+      <button class="preview-close" onclick="closePreview()">✕ 닫기</button>
+    </div>
+    <div class="preview-art-title" id="previewTitle"></div>
+    <div class="preview-body" id="previewBody"></div>
+  </div>
+
+  <button class="btn" id="syncBtn" onclick="syncNow()">아티클 생성하기</button>
+  <div id="syncResult" class="result"></div>
+
+</div>
+
+<script>
+// ── Notion helpers ──────────────────────────────────────────────────────────
+
+function extractPageId(url) {
+  const patterns = [
+    /([a-f0-9]{32})(?:[?#]|$)/,
+    /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/,
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return m[1].replace(/-/g, '');
+  }
+  return null;
+}
+
+async function notionFetch(token, path, params = {}) {
+  const url = new URL('https://api.notion.com/v1' + path);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const r = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Notion-Version': '2022-06-28',
+    },
+  });
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}));
+    throw new Error(e.message || `HTTP ${r.status}`);
+  }
+  return r.json();
+}
+
+async function fetchAllBlocks(token, blockId) {
+  let blocks = [], cursor;
+  do {
+    const params = cursor ? { start_cursor: cursor } : {};
+    const res = await notionFetch(token, `/blocks/${blockId}/children`, params);
+    blocks = blocks.concat(res.results);
+    cursor = res.has_more ? res.next_cursor : null;
+  } while (cursor);
+  return blocks;
+}
+
+function richText(arr) {
+  if (!arr?.length) return '';
+  return arr.map(t => {
+    let s = t.plain_text || '';
+    if (t.href) s = `<a href="${t.href}">${s}</a>`;
+    if (t.annotations?.bold) s = `<strong>${s}</strong>`;
+    if (t.annotations?.italic) s = `<em>${s}</em>`;
+    if (t.annotations?.code) s = `<code>${s}</code>`;
+    if (t.annotations?.strikethrough) s = `<s>${s}</s>`;
+    if (t.annotations?.underline) s = `<u>${s}</u>`;
+    return s;
+  }).join('');
+}
+
+function blocksToHtml(blocks) {
+  const out = [];
+  let listBuf = [], listKind = null;
+
+  function flush() {
+    if (!listBuf.length) return;
+    const tag = listKind === 'num' ? 'ol' : 'ul';
+    out.push(`<${tag}>${listBuf.map(i => `<li>${i}</li>`).join('')}</${tag}>`);
+    listBuf = []; listKind = null;
+  }
+
+  for (const b of blocks) {
+    if (b.type === 'bulleted_list_item') {
+      if (listKind !== 'bul') flush();
+      listKind = 'bul';
+      listBuf.push(richText(b.bulleted_list_item?.rich_text));
+      continue;
+    }
+    if (b.type === 'numbered_list_item') {
+      if (listKind !== 'num') flush();
+      listKind = 'num';
+      listBuf.push(richText(b.numbered_list_item?.rich_text));
+      continue;
+    }
+    flush();
+
+    switch (b.type) {
+      case 'heading_1': out.push(`<h1>${richText(b.heading_1?.rich_text)}</h1>`); break;
+      case 'heading_2': out.push(`<h2>${richText(b.heading_2?.rich_text)}</h2>`); break;
+      case 'heading_3': out.push(`<h3>${richText(b.heading_3?.rich_text)}</h3>`); break;
+      case 'paragraph': {
+        const t = richText(b.paragraph?.rich_text);
+        out.push(t.trim() ? `<p>${t}</p>` : '<br>');
+        break;
+      }
+      case 'quote':   out.push(`<blockquote>${richText(b.quote?.rich_text)}</blockquote>`); break;
+      case 'code':    out.push(`<pre><code>${richText(b.code?.rich_text)}</code></pre>`); break;
+      case 'divider': out.push('<hr>'); break;
+      case 'callout': {
+        const em = b.callout?.icon?.emoji || '';
+        out.push(`<p>${em} ${richText(b.callout?.rich_text)}</p>`);
+        break;
+      }
+      case 'image': {
+        const url = b.image?.file?.url || b.image?.external?.url || '';
+        const cap = richText(b.image?.caption) || '';
+        if (url) out.push(`<figure><img src="${url}" alt="${cap}"><figcaption>${cap}</figcaption></figure>`);
+        break;
+      }
+      case 'toggle':
+        out.push(`<details><summary>${richText(b.toggle?.rich_text)}</summary></details>`);
+        break;
+      default: break;
+    }
+  }
+  flush();
+  return out.join('\n');
+}
+
+function getTitle(page) {
+  const props = page.properties || {};
+  for (const k of ['title', 'Title', 'Name', 'name', '제목', '이름']) {
+    if (props[k]?.title) return props[k].title.map(t => t.plain_text).join('');
+  }
+  return page.title?.map(t => t.plain_text).join('') || '제목 없음';
+}
+
+// ── Channel Talk helpers ────────────────────────────────────────────────────
+
+async function ctFetch(key, secret, method, path, body) {
+  const r = await fetch('https://api.channel.io' + path, {
+    method,
+    headers: {
+      'x-access-key': key,
+      'x-access-secret': secret,
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}));
+    throw new Error(e.message || e.error || `HTTP ${r.status}`);
+  }
+  return r.json();
+}
+
+// ── UI helpers ──────────────────────────────────────────────────────────────
+
+function setStatus(id, type, msg) {
+  const el = document.getElementById(id);
+  el.className = 'status ' + type;
+  el.textContent = msg;
+}
+function clearStatus(id) { document.getElementById(id).className = 'status'; }
+
+// ── Actions ─────────────────────────────────────────────────────────────────
+
+async function testNotion() {
+  const token = document.getElementById('notionToken').value.trim();
+  const url   = document.getElementById('notionUrl').value.trim();
+  if (!token) { setStatus('notionStatus', 'err', 'Integration Token을 입력하세요.'); return; }
+
+  setStatus('notionStatus', 'ing', '⏳ 연결 확인 중...');
+  document.getElementById('corsNote').classList.remove('on');
+  try {
+    const pageId = url ? extractPageId(url) : null;
+    if (pageId) {
+      const page = await notionFetch(token, `/pages/${pageId}`);
+      setStatus('notionStatus', 'ok', `✅ 연결 성공: "${getTitle(page)}"`);
+      document.getElementById('previewBtn').style.display = '';
+      tryLoadCategories();
+    } else {
+      await notionFetch(token, '/users/me');
+      setStatus('notionStatus', 'ok', '✅ 인증 성공! 페이지 URL도 입력해보세요.');
+    }
+  } catch (e) {
+    if (e.message.includes('CORS') || e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+      setStatus('notionStatus', 'err', '❌ 네트워크 오류 (CORS)');
+      document.getElementById('corsNote').classList.add('on');
+    } else {
+      setStatus('notionStatus', 'err', '❌ ' + e.message);
+    }
+  }
+}
+
+async function previewPage() {
+  const token = document.getElementById('notionToken').value.trim();
+  const url   = document.getElementById('notionUrl').value.trim();
+  const pageId = extractPageId(url);
+  if (!token || !pageId) { alert('토큰과 페이지 URL을 입력하세요.'); return; }
+
+  setStatus('notionStatus', 'ing', '⏳ 페이지 불러오는 중...');
+  try {
+    const [page, blocks] = await Promise.all([
+      notionFetch(token, `/pages/${pageId}`),
+      fetchAllBlocks(token, pageId),
+    ]);
+    const title = getTitle(page);
+    const html  = blocksToHtml(blocks);
+    document.getElementById('previewTitle').textContent = title;
+    document.getElementById('previewBody').innerHTML = html || '<p style="color:#aaa">본문이 없습니다.</p>';
+    document.getElementById('previewCard').classList.add('on');
+    setStatus('notionStatus', 'ok', `✅ "${title}" 로드 완료 (블록 ${blocks.length}개)`);
+    document.getElementById('previewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {
+    setStatus('notionStatus', 'err', '❌ ' + e.message);
+  }
+}
+
+function closePreview() {
+  document.getElementById('previewCard').classList.remove('on');
+}
+
+async function testChannelTalk() {
+  const key    = document.getElementById('ctKey').value.trim();
+  const secret = document.getElementById('ctSecret').value.trim();
+  if (!key || !secret) { setStatus('ctStatus', 'err', 'Key와 Secret을 입력하세요.'); return; }
+
+  setStatus('ctStatus', 'ing', '⏳ 연결 확인 중...');
+  try {
+    const data = await ctFetch(key, secret, 'GET', '/open/v5/channels');
+    const name = data?.channel?.name || data?.name || '채널';
+    setStatus('ctStatus', 'ok', `✅ 연결 성공: ${name}`);
+    tryLoadCategories();
+  } catch (e) {
+    setStatus('ctStatus', 'err', '❌ ' + e.message);
+  }
+}
+
+async function tryLoadCategories() {
+  const key    = document.getElementById('ctKey').value.trim();
+  const secret = document.getElementById('ctSecret').value.trim();
+  if (!key || !secret) return;
+  try {
+    const data = await ctFetch(key, secret, 'GET', '/open/v5/help-center/categories');
+    const cats = data?.categories || [];
+    const sel  = document.getElementById('categorySelect');
+    sel.innerHTML = '<option value="">— 카테고리 없음 —</option>';
+    cats.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id;
+      o.textContent = c.name || c.id;
+      sel.appendChild(o);
+    });
+  } catch (_) { /* silent */ }
+}
+
+async function syncNow() {
+  const token   = document.getElementById('notionToken').value.trim();
+  const url     = document.getElementById('notionUrl').value.trim();
+  const key     = document.getElementById('ctKey').value.trim();
+  const secret  = document.getElementById('ctSecret').value.trim();
+  const catId   = document.getElementById('categorySelect').value;
+  const vis     = document.querySelector('input[name="vis"]:checked')?.value || 'public';
+  const resultEl = document.getElementById('syncResult');
+  const btn     = document.getElementById('syncBtn');
+
+  if (!token || !url) { resultEl.className='result err'; resultEl.textContent='❌ Notion 토큰과 페이지 URL을 입력하세요.'; return; }
+  if (!key || !secret) { resultEl.className='result err'; resultEl.textContent='❌ Channel Talk Key와 Secret을 입력하세요.'; return; }
+
+  const pageId = extractPageId(url);
+  if (!pageId) { resultEl.className='result err'; resultEl.textContent='❌ 유효한 Notion 페이지 URL이 아닙니다.'; return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>처리 중...';
+  resultEl.className = 'result';
+
+  try {
+    // 1. Notion 페이지 가져오기
+    const [page, blocks] = await Promise.all([
+      notionFetch(token, `/pages/${pageId}`),
+      fetchAllBlocks(token, pageId),
+    ]);
+    const title = getTitle(page);
+    const body  = blocksToHtml(blocks);
+
+    // 2. Channel Talk 아티클 생성
+    const payload = { title, body };
+    if (catId) payload.categoryId = catId;
+
+    const res = await ctFetch(key, secret, 'POST', '/open/v5/help-center/articles', payload);
+    const article = res?.article || res;
+
+    // 3. 공개 처리
+    if (vis === 'public' && article?.id) {
+      await ctFetch(key, secret, 'PUT', `/open/v5/help-center/articles/${article.id}/publish`, {}).catch(() => {});
+    }
+
+    resultEl.className = 'result ok';
+    resultEl.innerHTML = `✅ 아티클 생성 완료: "${title}"${article?.id ? `<br><span style="font-size:12px;opacity:0.7">ID: ${article.id}</span>` : ''}`;
+  } catch (e) {
+    resultEl.className = 'result err';
+    resultEl.textContent = '❌ ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '아티클 생성하기';
+    resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+// Ctrl+Enter = 동기화
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) syncNow();
+});
+</script>
+</body>
+</html>
