@@ -175,17 +175,23 @@ async function translateWithClaude(claudeKey, title, body, targetLangName) {
   return { title: translatedTitle, body: translatedBody };
 }
 
-// ─── Channel Talk helpers ────────────────────────────────────────────────────
+// ─── Channel Talk Document API helpers ───────────────────────────────────────
 
 function ctClient(key, secret) {
+  const token = Buffer.from(`${key}:${secret}`).toString('base64');
   return axios.create({
-    baseURL: 'https://api.channel.io',
+    baseURL: 'https://document-api.channel.io',
     headers: {
-      'x-access-key': key,
-      'x-access-secret': secret,
+      Authorization: `Basic ${token}`,
       'Content-Type': 'application/json',
     },
   });
+}
+
+function i18nName(val, lang = 'ko') {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  return val[lang] || val.ko || val.en || Object.values(val)[0] || '';
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
@@ -228,8 +234,9 @@ app.post('/api/channeltalk/test', async (req, res) => {
   if (!accessKey || !accessSecret) return res.status(400).json({ error: 'Key와 Secret이 필요합니다.' });
   try {
     const client = ctClient(accessKey, accessSecret);
-    const r = await client.get('/open/v5/channel');
-    res.json({ ok: true, message: `연결 성공: ${r.data?.channel?.name || '채널'}` });
+    const r = await client.get('/open/v1/spaces/$me');
+    const spaceName = i18nName(r.data?.space?.name);
+    res.json({ ok: true, message: `연결 성공: ${spaceName || '스페이스'}` });
   } catch (err) {
     res.status(400).json({ error: err.response?.data?.message || err.message });
   }
@@ -240,15 +247,32 @@ app.post('/api/channeltalk/meta', async (req, res) => {
   if (!accessKey || !accessSecret) return res.status(400).json({ error: 'Key/Secret 필요' });
   try {
     const client = ctClient(accessKey, accessSecret);
-    const [catRes, memberRes] = await Promise.allSettled([
-      client.get('/open/v5/help-center/categories'),
-      client.get('/open/v5/team-members'),
+    const [navRes, authorRes] = await Promise.allSettled([
+      client.get('/open/v1/spaces/$me/nav-nodes/$all'),
+      client.get('/open/v1/spaces/$me/authors'),
     ]);
-    res.json({
-      ok: true,
-      categories: catRes.status === 'fulfilled' ? (catRes.value.data?.categories || []) : [],
-      members: memberRes.status === 'fulfilled' ? (memberRes.value.data?.members || memberRes.value.data?.teamMembers || []) : [],
-    });
+
+    // 카테고리: nav-nodes에서 category 타입 추출 후 batch 조회
+    let categories = [];
+    if (navRes.status === 'fulfilled') {
+      const navNodes = navRes.value.data?.navNodes || [];
+      const categoryIds = [...new Set(
+        navNodes.filter(n => n.entityType === 'category' && n.entityId).map(n => n.entityId)
+      )];
+      if (categoryIds.length > 0) {
+        const batchRes = await client.get('/open/v1/spaces/$me/categories/batch', {
+          params: categoryIds.reduce((acc, id, i) => { acc[`ids[${i}]`] = id; return acc; }, {}),
+        }).catch(() => null);
+        categories = (batchRes?.data?.categories || []).map(c => ({
+          id: c.id,
+          name: i18nName(c.name),
+        }));
+      }
+    }
+
+    const authors = authorRes.status === 'fulfilled' ? (authorRes.value.data?.authors || []) : [];
+
+    res.json({ ok: true, categories, members: authors });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -280,37 +304,40 @@ app.post('/api/sync', async (req, res) => {
     const ct = ctClient(accessKey, accessSecret);
     const created = [];
 
+    async function createAndPublish(language, title, bodyHtml, authorId) {
+      const createRes = await ct.post('/open/v1/spaces/$me/articles', {
+        language,
+        name: title,
+        title,
+        bodyHtml,
+        ...(authorId ? { authorId } : {}),
+      });
+      const article = createRes.data?.article;
+      const revision = createRes.data?.revision;
+      if ((visibility === 'public' || visibility === 'published') && article?.id && revision?.id) {
+        await ct.put(
+          `/open/v1/spaces/$me/articles/${article.id}/revisions/${revision.id}/publish`
+        ).catch(() => {});
+      }
+      return { id: article?.id, revisionId: revision?.id };
+    }
+
     // 2. 한국어 아티클 생성 (항상)
-    const koRes = await ct.post('/open/v5/help-center/articles', {
-      title: koTitle, body: koBody, ...(categoryId ? { categoryId } : {}),
-    });
-    const koArticle = koRes.data?.article || koRes.data;
-    if (visibility === 'public' && koArticle?.id)
-      await ct.put(`/open/v5/help-center/articles/${koArticle.id}/publish`).catch(() => {});
-    created.push({ lang: '한국어', id: koArticle?.id, title: koTitle });
+    const ko = await createAndPublish('ko', koTitle, koBody, req.body.authorId);
+    created.push({ lang: '한국어', id: ko.id, title: koTitle });
 
     // 3. 영어 번역 생성
     if (translateEn && claudeApiKey) {
       const en = await translateWithClaude(claudeApiKey, koTitle, koBody, 'English');
-      const enRes = await ct.post('/open/v5/help-center/articles', {
-        title: en.title, body: en.body, ...(categoryId ? { categoryId } : {}),
-      });
-      const enArticle = enRes.data?.article || enRes.data;
-      if (visibility === 'public' && enArticle?.id)
-        await ct.put(`/open/v5/help-center/articles/${enArticle.id}/publish`).catch(() => {});
-      created.push({ lang: '영어', id: enArticle?.id, title: en.title });
+      const enResult = await createAndPublish('en', en.title, en.body, req.body.authorId);
+      created.push({ lang: '영어', id: enResult.id, title: en.title });
     }
 
     // 4. 일본어 번역 생성
     if (translateJa && claudeApiKey) {
       const ja = await translateWithClaude(claudeApiKey, koTitle, koBody, 'Japanese');
-      const jaRes = await ct.post('/open/v5/help-center/articles', {
-        title: ja.title, body: ja.body, ...(categoryId ? { categoryId } : {}),
-      });
-      const jaArticle = jaRes.data?.article || jaRes.data;
-      if (visibility === 'public' && jaArticle?.id)
-        await ct.put(`/open/v5/help-center/articles/${jaArticle.id}/publish`).catch(() => {});
-      created.push({ lang: '일본어', id: jaArticle?.id, title: ja.title });
+      const jaResult = await createAndPublish('ja', ja.title, ja.body, req.body.authorId);
+      created.push({ lang: '일본어', id: jaResult.id, title: ja.title });
     }
 
     res.json({ ok: true, created });
