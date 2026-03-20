@@ -2,15 +2,16 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const path = require('path');
+const Anthropic = require('@anthropic-ai/sdk');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname)));
 
 const PORT = process.env.PORT || 3000;
 
-// ─── Notion helpers ────────────────────────────────────────────────────────
+// ─── Notion helpers ──────────────────────────────────────────────────────────
 
 function notionClient(token) {
   return axios.create({
@@ -23,59 +24,46 @@ function notionClient(token) {
   });
 }
 
-// Extract page ID from Notion URL
 function extractPageId(urlOrId) {
-  // Handle various Notion URL formats
   const patterns = [
-    /([a-f0-9]{32})/,
+    /([a-f0-9]{32})(?:[?#]|$)/,
     /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/,
   ];
   for (const p of patterns) {
-    const m = urlOrId.match(p);
+    const m = (urlOrId || '').match(p);
     if (m) return m[1].replace(/-/g, '');
   }
   return null;
 }
 
-// Convert Notion rich text array to plain/HTML text
 function richTextToHtml(richText) {
-  if (!richText || !richText.length) return '';
-  return richText
-    .map((t) => {
-      let text = t.plain_text || '';
-      if (t.href) text = `<a href="${t.href}">${text}</a>`;
-      if (t.annotations) {
-        if (t.annotations.bold) text = `<strong>${text}</strong>`;
-        if (t.annotations.italic) text = `<em>${text}</em>`;
-        if (t.annotations.code) text = `<code>${text}</code>`;
-        if (t.annotations.strikethrough) text = `<s>${text}</s>`;
-        if (t.annotations.underline) text = `<u>${text}</u>`;
-      }
-      return text;
-    })
-    .join('');
+  if (!richText?.length) return '';
+  return richText.map((t) => {
+    let text = t.plain_text || '';
+    if (t.href) text = `<a href="${t.href}">${text}</a>`;
+    if (t.annotations?.bold) text = `<strong>${text}</strong>`;
+    if (t.annotations?.italic) text = `<em>${text}</em>`;
+    if (t.annotations?.code) text = `<code>${text}</code>`;
+    if (t.annotations?.strikethrough) text = `<s>${text}</s>`;
+    if (t.annotations?.underline) text = `<u>${text}</u>`;
+    return text;
+  }).join('');
 }
 
-// Convert Notion blocks to HTML
 function blocksToHtml(blocks) {
   const lines = [];
-  let listBuffer = [];
-  let listType = null;
+  let listBuffer = [], listType = null;
 
   function flushList() {
-    if (listBuffer.length === 0) return;
+    if (!listBuffer.length) return;
     const tag = listType === 'numbered' ? 'ol' : 'ul';
-    lines.push(`<${tag}>`);
-    listBuffer.forEach((item) => lines.push(`  <li>${item}</li>`));
-    lines.push(`</${tag}>`);
-    listBuffer = [];
-    listType = null;
+    lines.push(`<${tag}>${listBuffer.map(i => `<li>${i}</li>`).join('')}</${tag}>`);
+    listBuffer = []; listType = null;
   }
 
   for (const block of blocks) {
     const { type } = block;
 
-    // List blocks accumulate
     if (type === 'bulleted_list_item') {
       if (listType !== 'bullet') flushList();
       listType = 'bullet';
@@ -88,64 +76,46 @@ function blocksToHtml(blocks) {
       listBuffer.push(richTextToHtml(block.numbered_list_item?.rich_text));
       continue;
     }
-
     flushList();
 
     switch (type) {
-      case 'heading_1':
-        lines.push(`<h1>${richTextToHtml(block.heading_1?.rich_text)}</h1>`);
+      case 'child_page':
+        lines.push(`<hr><h2>${block.child_page?.title || '하위 페이지'}</h2>`);
         break;
-      case 'heading_2':
-        lines.push(`<h2>${richTextToHtml(block.heading_2?.rich_text)}</h2>`);
-        break;
-      case 'heading_3':
-        lines.push(`<h3>${richTextToHtml(block.heading_3?.rich_text)}</h3>`);
-        break;
+      case 'heading_1': lines.push(`<h1>${richTextToHtml(block.heading_1?.rich_text)}</h1>`); break;
+      case 'heading_2': lines.push(`<h2>${richTextToHtml(block.heading_2?.rich_text)}</h2>`); break;
+      case 'heading_3': lines.push(`<h3>${richTextToHtml(block.heading_3?.rich_text)}</h3>`); break;
       case 'paragraph': {
         const text = richTextToHtml(block.paragraph?.rich_text);
-        if (text.trim()) lines.push(`<p>${text}</p>`);
-        else lines.push('<br>');
+        lines.push(text.trim() ? `<p>${text}</p>` : '<br>');
         break;
       }
-      case 'quote':
-        lines.push(`<blockquote>${richTextToHtml(block.quote?.rich_text)}</blockquote>`);
-        break;
-      case 'code':
-        lines.push(`<pre><code>${richTextToHtml(block.code?.rich_text)}</code></pre>`);
-        break;
-      case 'divider':
-        lines.push('<hr>');
-        break;
+      case 'quote': lines.push(`<blockquote>${richTextToHtml(block.quote?.rich_text)}</blockquote>`); break;
+      case 'code': lines.push(`<pre><code>${richTextToHtml(block.code?.rich_text)}</code></pre>`); break;
+      case 'divider': lines.push('<hr>'); break;
       case 'callout': {
-        const emoji = block.callout?.icon?.emoji || '';
-        const text = richTextToHtml(block.callout?.rich_text);
-        lines.push(`<p>${emoji} ${text}</p>`);
+        const em = block.callout?.icon?.emoji || '';
+        lines.push(`<p>${em} ${richTextToHtml(block.callout?.rich_text)}</p>`);
         break;
       }
       case 'image': {
         const url = block.image?.file?.url || block.image?.external?.url || '';
-        const caption = richTextToHtml(block.image?.caption) || '';
-        if (url) lines.push(`<figure><img src="${url}" alt="${caption}"><figcaption>${caption}</figcaption></figure>`);
+        const cap = richTextToHtml(block.image?.caption) || '';
+        if (url) lines.push(`<figure><img src="${url}" alt="${cap}"><figcaption>${cap}</figcaption></figure>`);
         break;
       }
-      case 'toggle': {
-        const summary = richTextToHtml(block.toggle?.rich_text);
-        lines.push(`<details><summary>${summary}</summary></details>`);
+      case 'toggle':
+        lines.push(`<details><summary>${richTextToHtml(block.toggle?.rich_text)}</summary></details>`);
         break;
-      }
-      default:
-        break;
+      default: break;
     }
   }
-
   flushList();
   return lines.join('\n');
 }
 
-// Fetch all blocks (handles pagination)
 async function fetchAllBlocks(client, blockId) {
-  let blocks = [];
-  let cursor;
+  let blocks = [], cursor;
   do {
     const params = cursor ? { start_cursor: cursor } : {};
     const res = await client.get(`/blocks/${blockId}/children`, { params });
@@ -155,167 +125,201 @@ async function fetchAllBlocks(client, blockId) {
   return blocks;
 }
 
-// Get Notion page title
+async function fetchBlocksDeep(client, blockId, depth = 0) {
+  if (depth > 3) return [];
+  const blocks = await fetchAllBlocks(client, blockId);
+  const result = [];
+  for (const b of blocks) {
+    result.push(b);
+    if (b.type === 'child_page') {
+      const sub = await fetchBlocksDeep(client, b.id, depth + 1);
+      result.push(...sub);
+    }
+  }
+  return result;
+}
+
 function getPageTitle(page) {
   const props = page.properties || {};
   for (const key of ['title', 'Title', 'Name', 'name', '제목', '이름']) {
-    if (props[key]?.title) {
-      return props[key].title.map((t) => t.plain_text).join('');
-    }
+    if (props[key]?.title) return props[key].title.map(t => t.plain_text).join('');
   }
-  // Check page title from root
-  if (page.title) return page.title.map((t) => t.plain_text).join('');
-  return '제목 없음';
+  return page.title?.map(t => t.plain_text).join('') || '제목 없음';
 }
 
-// ─── Channel Talk helpers ───────────────────────────────────────────────────
+// ─── Claude translation ──────────────────────────────────────────────────────
 
-function channelTalkClient(accessKey, accessSecret) {
+async function translateWithClaude(claudeKey, title, body, targetLangName) {
+  const client = new Anthropic({ apiKey: claudeKey });
+
+  const [translatedTitle, translatedBody] = await Promise.all([
+    client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 512,
+      messages: [{
+        role: 'user',
+        content: `Translate this title to ${targetLangName}. Return only the translated title, nothing else:\n\n${title}`,
+      }],
+    }).then(r => r.content[0].text.trim()),
+
+    client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 8192,
+      messages: [{
+        role: 'user',
+        content: `Translate the following HTML content to ${targetLangName}. Preserve ALL HTML tags exactly as-is. Only translate the visible text content inside the tags. Return only the translated HTML:\n\n${body}`,
+      }],
+    }).then(r => r.content[0].text.trim()),
+  ]);
+
+  return { title: translatedTitle, body: translatedBody };
+}
+
+// ─── Channel Talk helpers ────────────────────────────────────────────────────
+
+function ctClient(key, secret) {
   return axios.create({
     baseURL: 'https://api.channel.io',
     headers: {
-      'x-access-key': accessKey,
-      'x-access-secret': accessSecret,
+      'x-access-key': key,
+      'x-access-secret': secret,
       'Content-Type': 'application/json',
     },
   });
 }
 
-// ─── API Routes ─────────────────────────────────────────────────────────────
+// ─── Routes ──────────────────────────────────────────────────────────────────
 
-// Test Notion connection
 app.post('/api/notion/test', async (req, res) => {
   const { token, pageUrl } = req.body;
   if (!token) return res.status(400).json({ error: 'Integration Token이 필요합니다.' });
-
   try {
     const client = notionClient(token);
     const pageId = extractPageId(pageUrl || '');
-
-    if (!pageId) {
-      // Just test auth with user endpoint
-      await client.get('/users/me');
-      return res.json({ ok: true, message: '인증 성공! 페이지 URL을 입력해주세요.' });
+    if (pageId) {
+      const page = await client.get(`/pages/${pageId}`);
+      return res.json({ ok: true, message: `연결 성공: "${getPageTitle(page.data)}"` });
     }
-
-    const page = await client.get(`/pages/${pageId}`);
-    const title = getPageTitle(page.data);
-    return res.json({ ok: true, message: `연결 성공: "${title}"` });
+    await client.get('/users/me');
+    res.json({ ok: true, message: '인증 성공! 페이지 URL도 입력해보세요.' });
   } catch (err) {
-    const msg = err.response?.data?.message || err.message;
-    res.status(400).json({ error: `Notion 오류: ${msg}` });
+    res.status(400).json({ error: err.response?.data?.message || err.message });
   }
 });
 
-// Get Notion page preview (title + HTML content)
 app.post('/api/notion/preview', async (req, res) => {
-  const { token, pageUrl } = req.body;
-  if (!token || !pageUrl) return res.status(400).json({ error: '토큰과 페이지 URL이 필요합니다.' });
-
+  const { token, pageUrl, includeSubpages } = req.body;
   const pageId = extractPageId(pageUrl);
-  if (!pageId) return res.status(400).json({ error: '유효한 Notion 페이지 URL이 아닙니다.' });
-
+  if (!token || !pageId) return res.status(400).json({ error: '토큰과 페이지 URL이 필요합니다.' });
   try {
     const client = notionClient(token);
-    const [pageRes, blocksRes] = await Promise.all([
+    const [pageRes, blocks] = await Promise.all([
       client.get(`/pages/${pageId}`),
-      fetchAllBlocks(client, pageId),
+      includeSubpages ? fetchBlocksDeep(client, pageId) : fetchAllBlocks(client, pageId),
     ]);
-
-    const title = getPageTitle(pageRes.data);
-    const body = blocksToHtml(blocksRes);
-
-    res.json({ ok: true, title, body, pageId });
+    res.json({ ok: true, title: getPageTitle(pageRes.data), body: blocksToHtml(blocks), blockCount: blocks.length });
   } catch (err) {
-    const msg = err.response?.data?.message || err.message;
-    res.status(400).json({ error: `Notion 오류: ${msg}` });
+    res.status(400).json({ error: err.response?.data?.message || err.message });
   }
 });
 
-// Test Channel Talk connection
 app.post('/api/channeltalk/test', async (req, res) => {
   const { accessKey, accessSecret } = req.body;
-  if (!accessKey || !accessSecret) return res.status(400).json({ error: 'Access Key와 Secret이 필요합니다.' });
-
+  if (!accessKey || !accessSecret) return res.status(400).json({ error: 'Key와 Secret이 필요합니다.' });
   try {
-    const client = channelTalkClient(accessKey, accessSecret);
-    // Try fetching the channel info
+    const client = ctClient(accessKey, accessSecret);
     const r = await client.get('/open/v5/channels');
-    const channel = r.data?.channel;
-    return res.json({ ok: true, message: `연결 성공: ${channel?.name || '채널'}` });
+    res.json({ ok: true, message: `연결 성공: ${r.data?.channel?.name || '채널'}` });
   } catch (err) {
-    const msg = err.response?.data?.message || err.message;
-    res.status(400).json({ error: `Channel Talk 오류: ${msg}` });
+    res.status(400).json({ error: err.response?.data?.message || err.message });
   }
 });
 
-// Get Channel Talk categories
-app.post('/api/channeltalk/categories', async (req, res) => {
+app.post('/api/channeltalk/meta', async (req, res) => {
   const { accessKey, accessSecret } = req.body;
   if (!accessKey || !accessSecret) return res.status(400).json({ error: 'Key/Secret 필요' });
-
   try {
-    const client = channelTalkClient(accessKey, accessSecret);
-    const r = await client.get('/open/v5/help-center/categories');
-    res.json({ ok: true, categories: r.data?.categories || [] });
+    const client = ctClient(accessKey, accessSecret);
+    const [catRes, memberRes] = await Promise.allSettled([
+      client.get('/open/v5/help-center/categories'),
+      client.get('/open/v5/team-members'),
+    ]);
+    res.json({
+      ok: true,
+      categories: catRes.status === 'fulfilled' ? (catRes.value.data?.categories || []) : [],
+      members: memberRes.status === 'fulfilled' ? (memberRes.value.data?.members || memberRes.value.data?.teamMembers || []) : [],
+    });
   } catch (err) {
-    const msg = err.response?.data?.message || err.message;
-    res.status(400).json({ error: msg });
+    res.status(400).json({ error: err.message });
   }
 });
 
-// Sync: fetch Notion page → create Channel Talk article
 app.post('/api/sync', async (req, res) => {
-  const { notionToken, pageUrl, accessKey, accessSecret, categoryId, visibility } = req.body;
+  const {
+    notionToken, pageUrl, accessKey, accessSecret,
+    categoryId, visibility, includeSubpages,
+    translateEn, translateJa, claudeApiKey,
+  } = req.body;
 
-  if (!notionToken || !pageUrl || !accessKey || !accessSecret) {
-    return res.status(400).json({ error: '모든 필드를 입력해주세요.' });
-  }
+  if (!notionToken || !pageUrl || !accessKey || !accessSecret)
+    return res.status(400).json({ error: '필수 필드를 모두 입력해주세요.' });
 
   const pageId = extractPageId(pageUrl);
   if (!pageId) return res.status(400).json({ error: '유효한 Notion 페이지 URL이 아닙니다.' });
 
   try {
-    // 1. Fetch Notion content
+    // 1. Notion 콘텐츠 수집
     const nClient = notionClient(notionToken);
     const [pageRes, blocks] = await Promise.all([
       nClient.get(`/pages/${pageId}`),
-      fetchAllBlocks(nClient, pageId),
+      includeSubpages ? fetchBlocksDeep(nClient, pageId) : fetchAllBlocks(nClient, pageId),
     ]);
+    const koTitle = getPageTitle(pageRes.data);
+    const koBody = blocksToHtml(blocks);
 
-    const title = getPageTitle(pageRes.data);
-    const body = blocksToHtml(blocks);
+    const ct = ctClient(accessKey, accessSecret);
+    const created = [];
 
-    // 2. Create Channel Talk article
-    const ctClient = channelTalkClient(accessKey, accessSecret);
+    // 2. 한국어 아티클 생성 (항상)
+    const koRes = await ct.post('/open/v5/help-center/articles', {
+      title: koTitle, body: koBody, ...(categoryId ? { categoryId } : {}),
+    });
+    const koArticle = koRes.data?.article || koRes.data;
+    if (visibility === 'public' && koArticle?.id)
+      await ct.put(`/open/v5/help-center/articles/${koArticle.id}/publish`).catch(() => {});
+    created.push({ lang: '한국어', id: koArticle?.id, title: koTitle });
 
-    const articlePayload = {
-      title,
-      body,
-      ...(categoryId ? { categoryId } : {}),
-    };
-
-    const r = await ctClient.post('/open/v5/help-center/articles', articlePayload);
-    const article = r.data?.article || r.data;
-
-    // 3. Publish if public
-    if (visibility === 'public' && article?.id) {
-      await ctClient.put(`/open/v5/help-center/articles/${article.id}/publish`).catch(() => {});
+    // 3. 영어 번역 생성
+    if (translateEn && claudeApiKey) {
+      const en = await translateWithClaude(claudeApiKey, koTitle, koBody, 'English');
+      const enRes = await ct.post('/open/v5/help-center/articles', {
+        title: en.title, body: en.body, ...(categoryId ? { categoryId } : {}),
+      });
+      const enArticle = enRes.data?.article || enRes.data;
+      if (visibility === 'public' && enArticle?.id)
+        await ct.put(`/open/v5/help-center/articles/${enArticle.id}/publish`).catch(() => {});
+      created.push({ lang: '영어', id: enArticle?.id, title: en.title });
     }
 
-    res.json({
-      ok: true,
-      message: `아티클 생성 완료: "${title}"`,
-      articleId: article?.id,
-    });
+    // 4. 일본어 번역 생성
+    if (translateJa && claudeApiKey) {
+      const ja = await translateWithClaude(claudeApiKey, koTitle, koBody, 'Japanese');
+      const jaRes = await ct.post('/open/v5/help-center/articles', {
+        title: ja.title, body: ja.body, ...(categoryId ? { categoryId } : {}),
+      });
+      const jaArticle = jaRes.data?.article || jaRes.data;
+      if (visibility === 'public' && jaArticle?.id)
+        await ct.put(`/open/v5/help-center/articles/${jaArticle.id}/publish`).catch(() => {});
+      created.push({ lang: '일본어', id: jaArticle?.id, title: ja.title });
+    }
+
+    res.json({ ok: true, created });
   } catch (err) {
-    const detail = err.response?.data;
-    const msg = detail?.message || detail?.error || err.message;
-    res.status(400).json({ error: msg, detail });
+    const msg = err.response?.data?.message || err.response?.data?.error || err.message;
+    res.status(400).json({ error: msg });
   }
 });
 
 app.listen(PORT, () => {
   console.log(`✅ 서버 실행 중: http://localhost:${PORT}`);
-  console.log(`   notion-channeltalk.html 접속`);
 });
