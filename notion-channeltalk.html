@@ -42,7 +42,7 @@
   label.field { display: block; }
   .field-name { font-size: 12px; color: #555; margin-bottom: 5px; font-weight: 500; }
 
-  input, select {
+  input[type=text], input[type=password], input[type=url], select {
     width: 100%;
     background: #fafafa;
     border: 1px solid #e0e0e0;
@@ -87,7 +87,7 @@
   .status.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; display: block; }
   .status.ing { background: #f0f4ff; color: #3730a3; border: 1px solid #c7d2fe; display: block; }
 
-  /* visibility toggle */
+  /* toggle group */
   .vis-wrap { margin-top: 14px; }
   .vis-label { font-size: 12px; color: #555; margin-bottom: 6px; font-weight: 500; }
   .vis-group { display: flex; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; }
@@ -99,8 +99,20 @@
     color: #aaa; cursor: pointer; transition: all 0.15s;
     background: #fafafa;
   }
-  .vis-item:first-child label { border-right: 1px solid #e0e0e0; }
+  .vis-item + .vis-item label { border-left: 1px solid #e0e0e0; }
   .vis-item input:checked + label { background: #fff; color: #111; font-weight: 700; }
+
+  /* checkbox */
+  .check-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 14px; cursor: pointer;
+  }
+  .check-row input[type=checkbox] {
+    width: 16px; height: 16px; cursor: pointer;
+    accent-color: #111; flex-shrink: 0;
+  }
+  .check-label { font-size: 13px; color: #333; user-select: none; }
+  .check-desc { font-size: 11px; color: #999; margin-left: 24px; margin-top: 2px; }
 
   /* preview */
   .preview-card {
@@ -140,6 +152,8 @@
   .preview-body figcaption { font-size: 12px; color: #999; margin-top: 4px; }
   .preview-body details { margin: 6px 0; }
   .preview-body summary { cursor: pointer; font-weight: 500; }
+  .subpage-divider { border-top: 2px dashed #e0e0e0; margin: 16px 0; padding-top: 12px; }
+  .subpage-title { font-size: 13px; font-weight: 700; color: #888; margin-bottom: 8px; }
 
   .btn {
     width: 100%;
@@ -177,6 +191,15 @@
   }
   .cors-note.on { display: block; }
   .cors-note code { background: rgba(0,0,0,0.07); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+
+  .lang-tabs { display: flex; gap: 6px; margin-top: 10px; }
+  .lang-tab {
+    flex: 1; padding: 8px 0; text-align: center;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    border: 1px solid #e0e0e0; border-radius: 8px;
+    color: #aaa; background: #fafafa; transition: all 0.15s;
+  }
+  .lang-tab.active { background: #111; color: #fff; border-color: #111; }
 </style>
 </head>
 <body>
@@ -198,14 +221,19 @@
         <input id="notionUrl" type="url" placeholder="notion.so/your-page"/>
       </label>
     </div>
+    <label class="check-row">
+      <input type="checkbox" id="includeSubpages" checked/>
+      <span class="check-label">하위 페이지 포함</span>
+    </label>
+    <div class="check-desc">체크 시 하위 페이지 내용을 본문에 이어 붙입니다.</div>
     <div class="btn-row">
       <button class="btn-test" onclick="testNotion()">🔍 연결 테스트</button>
       <button class="btn-test" id="previewBtn" onclick="previewPage()" style="display:none;">👁 미리보기</button>
     </div>
     <div id="notionStatus" class="status"></div>
     <div id="corsNote" class="cors-note">
-      ⚠️ CORS 오류: 브라우저에서 Notion API 직접 호출이 차단될 수 있습니다.<br>
-      해결 방법: 터미널에서 <code>npm install &amp;&amp; node server.js</code> 실행 후 <code>localhost:3000</code>에서 사용하세요.
+      ⚠️ CORS 오류: 브라우저에서 Notion API 직접 호출이 차단됩니다.<br>
+      해결: 터미널에서 <code>npm install &amp;&amp; node server.js</code> 후 <code>localhost:3000</code>에서 사용하세요.
     </div>
   </div>
 
@@ -226,6 +254,32 @@
       <button class="btn-test" onclick="testChannelTalk()">🔍 연결 테스트</button>
     </div>
     <div id="ctStatus" class="status"></div>
+  </div>
+
+  <!-- ── 번역 설정 ── -->
+  <div class="card">
+    <div class="card-title">번역 설정</div>
+    <label class="field">
+      <div class="field-name">DeepL API Key <span style="color:#bbb;font-weight:400">(선택 — 없으면 번역 건너뜀)</span></div>
+      <input id="deeplKey" type="password" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx"/>
+    </label>
+    <div class="vis-wrap">
+      <div class="vis-label">아티클 언어</div>
+      <div class="vis-group">
+        <div class="vis-item">
+          <input type="radio" name="lang" id="langKo" value="KO" checked/>
+          <label for="langKo">🇰🇷 한국어</label>
+        </div>
+        <div class="vis-item">
+          <input type="radio" name="lang" id="langEn" value="EN-US"/>
+          <label for="langEn">🇺🇸 영어</label>
+        </div>
+        <div class="vis-item">
+          <input type="radio" name="lang" id="langJa" value="JA"/>
+          <label for="langJa">🇯🇵 일본어</label>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ── 동기화 설정 ── -->
@@ -309,6 +363,23 @@ async function fetchAllBlocks(token, blockId) {
   return blocks;
 }
 
+// 하위 페이지까지 재귀 수집
+async function fetchBlocksDeep(token, blockId, depth = 0) {
+  if (depth > 3) return []; // 최대 3단계
+  const blocks = await fetchAllBlocks(token, blockId);
+  const result = [];
+  for (const b of blocks) {
+    if (b.type === 'child_page') {
+      result.push(b); // 하위 페이지 구분선 역할
+      const sub = await fetchBlocksDeep(token, b.id, depth + 1);
+      result.push(...sub);
+    } else {
+      result.push(b);
+    }
+  }
+  return result;
+}
+
 function richText(arr) {
   if (!arr?.length) return '';
   return arr.map(t => {
@@ -350,6 +421,9 @@ function blocksToHtml(blocks) {
     flush();
 
     switch (b.type) {
+      case 'child_page':
+        out.push(`<div class="subpage-divider"><div class="subpage-title">📄 ${b.child_page?.title || '하위 페이지'}</div></div>`);
+        break;
       case 'heading_1': out.push(`<h1>${richText(b.heading_1?.rich_text)}</h1>`); break;
       case 'heading_2': out.push(`<h2>${richText(b.heading_2?.rich_text)}</h2>`); break;
       case 'heading_3': out.push(`<h3>${richText(b.heading_3?.rich_text)}</h3>`); break;
@@ -388,6 +462,40 @@ function getTitle(page) {
     if (props[k]?.title) return props[k].title.map(t => t.plain_text).join('');
   }
   return page.title?.map(t => t.plain_text).join('') || '제목 없음';
+}
+
+// ── DeepL 번역 ───────────────────────────────────────────────────────────────
+
+async function translateText(text, targetLang, apiKey) {
+  if (!apiKey || !text.trim()) return text;
+  const isFree = apiKey.endsWith(':fx');
+  const endpoint = isFree
+    ? 'https://api-free.deepl.com/v2/translate'
+    : 'https://api.deepl.com/v2/translate';
+  const r = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ auth_key: apiKey, text, target_lang: targetLang }),
+  });
+  if (!r.ok) throw new Error(`DeepL HTTP ${r.status}`);
+  const data = await r.json();
+  return data.translations?.[0]?.text || text;
+}
+
+async function translateHtml(html, targetLang, apiKey) {
+  if (!apiKey || !html.trim()) return html;
+  const isFree = apiKey.endsWith(':fx');
+  const endpoint = isFree
+    ? 'https://api-free.deepl.com/v2/translate'
+    : 'https://api.deepl.com/v2/translate';
+  const r = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ auth_key: apiKey, text: html, target_lang: targetLang, tag_handling: 'html' }),
+  });
+  if (!r.ok) throw new Error(`DeepL HTTP ${r.status}`);
+  const data = await r.json();
+  return data.translations?.[0]?.text || html;
 }
 
 // ── Channel Talk helpers ────────────────────────────────────────────────────
@@ -452,13 +560,14 @@ async function previewPage() {
   const token = document.getElementById('notionToken').value.trim();
   const url   = document.getElementById('notionUrl').value.trim();
   const pageId = extractPageId(url);
+  const deep = document.getElementById('includeSubpages').checked;
   if (!token || !pageId) { alert('토큰과 페이지 URL을 입력하세요.'); return; }
 
-  setStatus('notionStatus', 'ing', '⏳ 페이지 불러오는 중...');
+  setStatus('notionStatus', 'ing', `⏳ 페이지 불러오는 중${deep ? ' (하위 페이지 포함)' : ''}...`);
   try {
     const [page, blocks] = await Promise.all([
       notionFetch(token, `/pages/${pageId}`),
-      fetchAllBlocks(token, pageId),
+      deep ? fetchBlocksDeep(token, pageId) : fetchAllBlocks(token, pageId),
     ]);
     const title = getTitle(page);
     const html  = blocksToHtml(blocks);
@@ -517,6 +626,9 @@ async function syncNow() {
   const secret  = document.getElementById('ctSecret').value.trim();
   const catId   = document.getElementById('categorySelect').value;
   const vis     = document.querySelector('input[name="vis"]:checked')?.value || 'public';
+  const deep    = document.getElementById('includeSubpages').checked;
+  const targetLang = document.querySelector('input[name="lang"]:checked')?.value || 'KO';
+  const deeplKey = document.getElementById('deeplKey').value.trim();
   const resultEl = document.getElementById('syncResult');
   const btn     = document.getElementById('syncBtn');
 
@@ -534,25 +646,35 @@ async function syncNow() {
     // 1. Notion 페이지 가져오기
     const [page, blocks] = await Promise.all([
       notionFetch(token, `/pages/${pageId}`),
-      fetchAllBlocks(token, pageId),
+      deep ? fetchBlocksDeep(token, pageId) : fetchAllBlocks(token, pageId),
     ]);
-    const title = getTitle(page);
-    const body  = blocksToHtml(blocks);
+    let title = getTitle(page);
+    let body  = blocksToHtml(blocks);
 
-    // 2. Channel Talk 아티클 생성
+    // 2. 번역 (KO가 아닐 때 + DeepL 키 있을 때)
+    if (targetLang !== 'KO' && deeplKey) {
+      btn.innerHTML = '<span class="spinner"></span>번역 중...';
+      [title, body] = await Promise.all([
+        translateText(title, targetLang, deeplKey),
+        translateHtml(body, targetLang, deeplKey),
+      ]);
+    }
+
+    // 3. Channel Talk 아티클 생성
     const payload = { title, body };
     if (catId) payload.categoryId = catId;
 
     const res = await ctFetch(key, secret, 'POST', '/open/v5/help-center/articles', payload);
     const article = res?.article || res;
 
-    // 3. 공개 처리
+    // 4. 공개 처리
     if (vis === 'public' && article?.id) {
       await ctFetch(key, secret, 'PUT', `/open/v5/help-center/articles/${article.id}/publish`, {}).catch(() => {});
     }
 
+    const langLabel = { 'KO': '한국어', 'EN-US': '영어', 'JA': '일본어' }[targetLang] || targetLang;
     resultEl.className = 'result ok';
-    resultEl.innerHTML = `✅ 아티클 생성 완료: "${title}"${article?.id ? `<br><span style="font-size:12px;opacity:0.7">ID: ${article.id}</span>` : ''}`;
+    resultEl.innerHTML = `✅ 아티클 생성 완료 (${langLabel}): "${title}"${article?.id ? `<br><span style="font-size:12px;opacity:0.7">ID: ${article.id}</span>` : ''}`;
   } catch (e) {
     resultEl.className = 'result err';
     resultEl.textContent = '❌ ' + e.message;
