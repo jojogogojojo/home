@@ -15,28 +15,29 @@
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    padding: 32px 16px 64px;
+    padding: 20px 16px 40px;
   }
-  .wrap { width: 100%; max-width: 560px; }
+  .wrap { width: 100%; max-width: 600px; }
 
-  h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-  .sub { font-size: 13px; color: #888; margin-bottom: 24px; line-height: 1.6; }
+  h1 { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+  .sub { font-size: 12px; color: #888; margin-bottom: 14px; line-height: 1.5; }
 
   .card {
     background: #fff;
     border: 1px solid #e5e5e5;
-    border-radius: 14px;
-    padding: 20px;
-    margin-bottom: 12px;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
   }
   .card-title {
-    font-size: 11px; font-weight: 600; color: #999;
+    font-size: 10px; font-weight: 600; color: #999;
     letter-spacing: 0.07em; text-transform: uppercase;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
   }
 
-  .field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .field + .field, .field-pair + .field, .field + .field-pair { margin-top: 12px; }
+  .field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+  .field-pair > .field + .field { margin-top: 0; }
+  .field-pair + .field, .field + .field-pair { margin-top: 10px; }
   .field-name { font-size: 12px; color: #555; margin-bottom: 5px; font-weight: 500; }
 
   input[type=text], input[type=password], input[type=url], select {
@@ -57,12 +58,12 @@
   input:focus, select:focus { border-color: #555; box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
 
   /* toggle group (공개/비공개) */
-  .seg-group { display: flex; border-radius: 9px; overflow: hidden; border: 1px solid #e0e0e0; margin-top: 12px; }
+  .seg-group { display: flex; border-radius: 9px; overflow: hidden; border: 1px solid #e0e0e0; margin-top: 8px; }
   .seg-item { flex: 1; }
   .seg-item input { display: none; }
   .seg-item label {
-    display: block; text-align: center; padding: 11px 0;
-    font-size: 14px; font-weight: 500; color: #aaa;
+    display: block; text-align: center; padding: 9px 0;
+    font-size: 13px; font-weight: 500; color: #aaa;
     cursor: pointer; transition: all 0.15s; background: #fafafa;
   }
   .seg-item + .seg-item label { border-left: 1px solid #e0e0e0; }
@@ -71,15 +72,15 @@
   /* iOS toggle switch */
   .option-row {
     display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 16px; padding: 14px 0;
+    gap: 12px; padding: 10px 0;
   }
   .option-row + .option-row { border-top: 1px solid #f0f0f0; }
   .option-info { flex: 1; }
   .option-title {
-    font-size: 15px; font-weight: 600; color: #111;
+    font-size: 14px; font-weight: 600; color: #111;
     display: flex; align-items: center; gap: 6px;
   }
-  .option-desc { font-size: 12px; color: #999; margin-top: 3px; line-height: 1.4; }
+  .option-desc { font-size: 12px; color: #999; margin-top: 2px; line-height: 1.4; }
 
   .ai-badge {
     font-size: 11px; font-weight: 600; color: #5b6ef5;
@@ -106,7 +107,7 @@
   .toggle-sw input:checked ~ .toggle-thumb { transform: translateX(20px); }
 
   /* btn-row */
-  .btn-row { display: flex; gap: 8px; margin-top: 14px; }
+  .btn-row { display: flex; gap: 8px; margin-top: 10px; }
   .btn-sm {
     background: #f0f0f0; border: 1px solid #e0e0e0; border-radius: 8px;
     color: #555; font-family: inherit; font-size: 12px; font-weight: 600;
@@ -157,8 +158,8 @@
   /* main CTA */
   .btn-main {
     width: 100%; background: #111; color: #fff; border: none;
-    border-radius: 12px; font-family: inherit; font-size: 16px; font-weight: 700;
-    padding: 16px; cursor: pointer; transition: background 0.15s; margin-top: 4px;
+    border-radius: 12px; font-family: inherit; font-size: 15px; font-weight: 700;
+    padding: 14px; cursor: pointer; transition: background 0.15s; margin-top: 4px;
   }
   .btn-main:hover { background: #333; }
   .btn-main:disabled { background: #aaa; cursor: default; }
@@ -252,7 +253,7 @@
         </select>
       </div>
     </div>
-    <div class="field-name" style="margin-top:14px;margin-bottom:6px;">공개 여부</div>
+    <div class="field-name" style="margin-top:10px;margin-bottom:5px;">공개 여부</div>
     <div class="seg-group">
       <div class="seg-item">
         <input type="radio" name="vis" id="pub" value="public" checked/>
