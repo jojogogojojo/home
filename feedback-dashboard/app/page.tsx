@@ -4,6 +4,7 @@ import { useState } from "react";
 import DateRangePicker from "@/components/DateRangePicker";
 import CategoryChart from "@/components/CategoryChart";
 import FeedbackList from "@/components/FeedbackList";
+import { ParallaxStarsBackground } from "@/components/ParallaxStarsBackground";
 import type { Feedback } from "@/lib/channeltalk";
 import type { Category } from "@/lib/claude";
 
@@ -89,7 +90,8 @@ export default function Home() {
     : "-";
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen">
+      <ParallaxStarsBackground />
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* 헤더 */}
         <div className="mb-8">
