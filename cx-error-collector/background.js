@@ -50,10 +50,15 @@ chrome.webRequest.onCompleted.addListener(
       } catch (_) {}
     }
 
-    // 응답 상태 텍스트 (예: "Internal Server Error", "Forbidden")
-    const statusText = details.statusLine
-      ? details.statusLine.replace(/^HTTP\/[\d.]+ \d+ /, '').trim()
-      : '';
+    // 응답 상태 텍스트
+    const STATUS_TEXTS = {
+      400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden',
+      404: 'Not Found', 405: 'Method Not Allowed', 408: 'Request Timeout',
+      409: 'Conflict', 410: 'Gone', 422: 'Unprocessable Entity',
+      429: 'Too Many Requests', 500: 'Internal Server Error',
+      502: 'Bad Gateway', 503: 'Service Unavailable', 504: 'Gateway Timeout',
+    };
+    const statusText = STATUS_TEXTS[details.statusCode] || '';
 
     if (isError) {
       events.push({
