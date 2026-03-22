@@ -188,6 +188,103 @@ header {
 .event-meta {
   color: #888;
   font-size: 10px;
+  display: none;
+}
+
+/* 뒤로 버튼 */
+.btn-back {
+  background: none;
+  border: none;
+  color: #2b6cb0;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 600;
+}
+
+/* 이벤트 아이템 개선 */
+.event-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.event-time {
+  font-size: 10px;
+  color: #999;
+  white-space: nowrap;
+  margin-left: 6px;
+}
+
+.event-page {
+  color: #777;
+  font-size: 10px;
+  margin-top: 2px;
+  word-break: break-all;
+}
+
+/* 이전 기록 */
+.history-section {
+  margin-top: 14px;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+.history-section.hidden { display: none; }
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.btn-text:hover { color: #e53e3e; }
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: #f7f7fb;
+  border: 1px solid #e2e2f0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.history-item:hover { background: #eef2ff; }
+
+.history-date {
+  font-size: 11px;
+  font-weight: 600;
+  color: #444;
+}
+
+.history-summary {
+  font-size: 10px;
+  color: #888;
 }
 
 /* 버튼 */

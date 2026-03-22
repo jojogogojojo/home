@@ -18,6 +18,14 @@
   <section id="screen-idle" class="screen active">
     <p class="desc">녹화를 시작하면 HTTP 에러, 느린 요청,<br>콘솔 에러를 자동으로 수집합니다.</p>
     <button id="btn-start" class="btn btn-primary">▶ 녹화 시작</button>
+
+    <div id="history-section" class="history-section hidden">
+      <div class="history-header">
+        <span>이전 기록</span>
+        <button id="btn-clear-history" class="btn-text">전체 삭제</button>
+      </div>
+      <div id="history-list" class="history-list"></div>
+    </div>
   </section>
 
   <!-- 화면 2: 녹화 중 -->
@@ -46,7 +54,8 @@
   <!-- 화면 3: 결과 -->
   <section id="screen-result" class="screen">
     <div id="summary-header" class="summary-header">
-      <span id="summary-total" class="total-count">0개 이슈 발견</span>
+      <button id="btn-back" class="btn-back">← 목록</button>
+      <span id="summary-total" class="total-count">0개 이슈</span>
       <span id="summary-time" class="summary-time"></span>
     </div>
 
@@ -55,7 +64,7 @@
     <div class="actions">
       <button id="btn-copy" class="btn btn-secondary">📋 복사</button>
       <button id="btn-download" class="btn btn-secondary">⬇ JSON 다운로드</button>
-      <button id="btn-reset" class="btn btn-outline">다시 녹화</button>
+      <button id="btn-reset" class="btn btn-outline">새 녹화 시작</button>
     </div>
 
     <div id="copy-toast" class="toast hidden">클립보드에 복사됐습니다!</div>
