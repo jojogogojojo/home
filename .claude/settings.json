@@ -16,10 +16,6 @@
           {
             "type": "command",
             "command": "bash /home/user/home/.plugins-native/plugins/doubt/hooks/scripts/doubt-validator.sh"
-          },
-          {
-            "type": "command",
-            "command": "python3 /home/user/home/.plugins-native/plugins/say-summary/scripts/say-summary.py"
           }
         ]
       }
