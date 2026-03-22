@@ -1,0 +1,196 @@
+/* popup.css */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  width: 320px;
+  min-height: 180px;
+  margin: 0;
+  padding: 20px 16px;
+  font-family: -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  font-size: 14px;
+  color: #1a1a1a;
+  background: #ffffff;
+}
+
+/* ── 화면 전환 ─────────────────────────────────────────── */
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ── 로고 ──────────────────────────────────────────────── */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.logo-icon {
+  font-size: 20px;
+}
+
+/* ── 설명 텍스트 ────────────────────────────────────────── */
+.desc {
+  margin: 0;
+  line-height: 1.6;
+  color: #4b5563;
+  font-size: 13px;
+}
+
+/* ── 녹화 배지 ─────────────────────────────────────────── */
+.recording-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  color: #dc2626;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #dc2626;
+  flex-shrink: 0;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+
+/* ── 실시간 카운트 ──────────────────────────────────────── */
+.live-counts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.count-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.count-label {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.count-val {
+  font-weight: 700;
+  font-size: 15px;
+  color: #1a1a1a;
+  min-width: 24px;
+  text-align: right;
+}
+
+/* ── 결과 헤더 ─────────────────────────────────────────── */
+.results-header {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+/* ── 요약 통계 ─────────────────────────────────────────── */
+.summary-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.stat-row b {
+  color: #1a1a1a;
+  font-size: 14px;
+}
+
+/* ── 버튼 ──────────────────────────────────────────────── */
+.btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  transition: opacity 0.15s;
+}
+
+.btn:hover {
+  opacity: 0.88;
+}
+
+.btn:active {
+  opacity: 0.75;
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.btn-secondary {
+  background: #6b7280;
+  color: #ffffff;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: #9ca3af;
+  font-size: 13px;
+  text-decoration: underline;
+  padding: 6px;
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-row .btn {
+  flex: 1;
+  width: auto;
+}
+
+/* ── 복사 완료 메시지 ───────────────────────────────────── */
+.copy-confirm {
+  text-align: center;
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 600;
+}

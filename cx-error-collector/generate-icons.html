@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<!--
+  generate-icons.html — 아이콘 PNG 생성 도구
+  ─────────────────────────────────────────────
+  이 파일은 배포 패키지에 포함되지 않습니다.
+  브라우저에서 열어 세 가지 아이콘을 다운로드한 후
+  icons/ 폴더에 넣어 주세요.
+-->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>아이콘 생성기</title>
+  <style>
+    body { font-family: sans-serif; padding: 24px; }
+    a { display: block; margin: 8px 0; font-size: 15px; }
+    canvas { border: 1px solid #ddd; margin: 4px; }
+  </style>
+</head>
+<body>
+  <h2>CX 오류 수집기 — 아이콘 생성</h2>
+  <p>아래 링크를 클릭하면 PNG가 다운로드됩니다.<br>
+     파일을 <code>cx-error-collector/icons/</code> 폴더에 저장하세요.</p>
+  <div id="previews"></div>
+  <div id="links"></div>
+
+  <script>
+    function drawIcon(size) {
+      var canvas = document.createElement('canvas');
+      canvas.width  = size;
+      canvas.height = size;
+      var ctx = canvas.getContext('2d');
+
+      // 배경 원 — 파란색
+      ctx.fillStyle = '#2563eb';
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 흰색 돋보기 원
+      var lw = Math.max(1, size * 0.12);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth   = lw;
+      ctx.beginPath();
+      ctx.arc(size * 0.40, size * 0.38, size * 0.22, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // 돋보기 손잡이
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(size * 0.57, size * 0.55);
+      ctx.lineTo(size * 0.74, size * 0.73);
+      ctx.stroke();
+
+      return canvas;
+    }
+
+    var container = document.getElementById('previews');
+    var linkBox   = document.getElementById('links');
+
+    [16, 48, 128].forEach(function (size) {
+      var canvas  = drawIcon(size);
+      var dataUrl = canvas.toDataURL('image/png');
+
+      // 미리보기
+      container.appendChild(canvas);
+
+      // 다운로드 링크
+      var a      = document.createElement('a');
+      a.href     = dataUrl;
+      a.download = 'icon' + size + '.png';
+      a.textContent = '⬇ icon' + size + '.png (' + size + 'x' + size + ') 다운로드';
+      linkBox.appendChild(a);
+    });
+  </script>
+</body>
+</html>

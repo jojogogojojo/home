@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>CX 오류 수집기</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+  <!-- ── 화면 1: 대기 ─────────────────────────────────── -->
+  <div id="screen-idle" class="screen">
+    <div class="logo">
+      <span class="logo-icon">🔍</span>
+      <span class="logo-text">CX 오류 수집기</span>
+    </div>
+    <p class="desc">
+      문제가 발생한 화면을 재현하기 전에<br>
+      녹화를 시작해 주세요.
+    </p>
+    <button id="btn-start" class="btn btn-primary">▶&nbsp; 녹화 시작</button>
+  </div>
+
+  <!-- ── 화면 2: 녹화 중 ──────────────────────────────── -->
+  <div id="screen-recording" class="screen hidden">
+    <div class="recording-badge">
+      <span class="dot"></span>
+      <span>녹화 중</span>
+    </div>
+    <p class="desc">
+      문제가 발생하는 동작을 재현해 주세요.<br>
+      완료되면 아래 버튼을 눌러 주세요.
+    </p>
+    <div class="live-counts">
+      <div class="count-item">
+        <span class="count-label">HTTP 오류</span>
+        <span class="count-val" id="count-http">0</span>
+      </div>
+      <div class="count-item">
+        <span class="count-label">느린 요청</span>
+        <span class="count-val" id="count-slow">0</span>
+      </div>
+      <div class="count-item">
+        <span class="count-label">콘솔 오류</span>
+        <span class="count-val" id="count-console">0</span>
+      </div>
+    </div>
+    <button id="btn-stop" class="btn btn-danger">■&nbsp; 녹화 끝</button>
+  </div>
+
+  <!-- ── 화면 3: 결과 ─────────────────────────────────── -->
+  <div id="screen-results" class="screen hidden">
+    <div class="results-header">📋 수집 완료</div>
+    <div id="summary-stats" class="summary-stats"></div>
+    <div class="btn-row">
+      <button id="btn-copy" class="btn btn-primary">📋&nbsp; 복사</button>
+      <button id="btn-download" class="btn btn-secondary">⬇&nbsp; JSON</button>
+    </div>
+    <div id="copy-confirm" class="copy-confirm hidden">✅ 클립보드에 복사되었습니다!</div>
+    <button id="btn-reset" class="btn btn-ghost">↺ 다시 시작</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
