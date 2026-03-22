@@ -6,7 +6,19 @@
 <title>채널톡 피드백 분석</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #090A0F; }
+
+  /* 별 배경 */
+  #stars-bg {
+    position: fixed; inset: 0; z-index: 0;
+    background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+  }
+  @keyframes animStar {
+    from { transform: translateY(0px); }
+    to   { transform: translateY(-2000px); }
+  }
+  .stars-layer { position:fixed; left:0; top:0; background:transparent; }
+  #app-root { position: relative; z-index: 1; }
   .fade-in { animation: fadeIn .25s ease; }
   @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
   .card { background:#fff; border-radius:12px; border:1px solid #e5e7eb; box-shadow:0 1px 3px rgba(0,0,0,.05); }
@@ -28,7 +40,25 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="min-h-screen">
+
+<!-- 별 배경 -->
+<div id="stars-bg"></div>
+<div id="stars1" class="stars-layer" style="width:1px;height:1px;animation:animStar 50s linear infinite"></div>
+<div id="stars2" class="stars-layer" style="width:2px;height:2px;animation:animStar 100s linear infinite"></div>
+<div id="stars3" class="stars-layer" style="width:3px;height:3px;animation:animStar 150s linear infinite"></div>
+<script>
+function genShadows(n,size){
+  let v=`${~~(Math.random()*2000)}px ${~~(Math.random()*2000)}px #FFF`;
+  for(let i=1;i<n;i++) v+=`,${~~(Math.random()*2000)}px ${~~(Math.random()*2000)}px #FFF`;
+  return v;
+}
+document.getElementById('stars1').style.boxShadow=genShadows(700);
+document.getElementById('stars2').style.boxShadow=genShadows(200);
+document.getElementById('stars3').style.boxShadow=genShadows(100);
+</script>
+
+<div id="app-root">
 <div class="max-w-4xl mx-auto px-4 py-8">
 
   <!-- 헤더 -->
@@ -315,5 +345,6 @@ function toggleGroup(id) {
   renderGroups(currentTab);
 }
 </script>
+</div><!-- /app-root -->
 </body>
 </html>
