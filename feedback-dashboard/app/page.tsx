@@ -10,6 +10,11 @@ import type { Category } from "@/lib/claude";
 type Step = "idle" | "fetching" | "analyzing" | "done" | "error";
 
 export default function Home() {
+  const [channeltalkApiKey, setChanneltalkApiKey] = useState("");
+  const [channeltalkApiSecret, setChanneltalkApiSecret] = useState("");
+  const [channeltalkGroupId, setChanneltalkGroupId] = useState("");
+  const [anthropicApiKey, setAnthropicApiKey] = useState("");
+
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
@@ -17,6 +22,12 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   async function handleSearch(start: string, end: string) {
+    if (!channeltalkApiKey || !channeltalkGroupId || !anthropicApiKey) {
+      setError("채널톡 API Key, Group ID, Anthropic API Key를 모두 입력해주세요.");
+      setStep("error");
+      return;
+    }
+
     setError(null);
     setFeedbacks([]);
     setCategories([]);
@@ -25,7 +36,17 @@ export default function Home() {
 
     try {
       // 1. 채널톡에서 피드백 가져오기
-      const fbRes = await fetch(`/api/feedbacks?start=${start}&end=${end}`);
+      const fbRes = await fetch("/api/feedbacks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          apiKey: channeltalkApiKey,
+          apiSecret: channeltalkApiSecret,
+          groupId: channeltalkGroupId,
+          start,
+          end,
+        }),
+      });
       const fbData = await fbRes.json();
       if (!fbRes.ok) throw new Error(fbData.error);
 
@@ -42,7 +63,10 @@ export default function Home() {
       const analyzeRes = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ feedbacks: fetchedFeedbacks }),
+        body: JSON.stringify({
+          feedbacks: fetchedFeedbacks,
+          anthropicApiKey,
+        }),
       });
       const analyzeData = await analyzeRes.json();
       if (!analyzeRes.ok) throw new Error(analyzeData.error);
@@ -59,25 +83,78 @@ export default function Home() {
     setSelectedCategory((prev) => (prev === name ? null : name));
   }
 
+  const totalGroups = categories.reduce((sum, c) => sum + c.groups.length, 0);
+  const topCategory = categories.length > 0
+    ? categories.reduce((a, b) => a.totalCount >= b.totalCount ? a : b).name
+    : "-";
+
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* 헤더 */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">
-            채널톡 피드백 분석
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900">채널톡 피드백 분석</h1>
           <p className="text-sm text-gray-500 mt-1">
-            기간을 선택하면 FeedbackBot 메시지를 수집하고 AI로 자동 분류합니다.
+            FeedbackBot 메시지를 기간별로 수집하고 AI로 자동 분류합니다.
           </p>
         </div>
 
-        {/* 기간 선택 */}
+        {/* Step 1: API 키 입력 */}
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-6">
+          <h2 className="text-sm font-semibold text-gray-700 mb-4">Step 1 — API 키 설정</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">채널톡 Access Key *</label>
+              <input
+                type="password"
+                value={channeltalkApiKey}
+                onChange={(e) => setChanneltalkApiKey(e.target.value)}
+                placeholder="x-access-key"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">채널톡 Access Secret</label>
+              <input
+                type="password"
+                value={channeltalkApiSecret}
+                onChange={(e) => setChanneltalkApiSecret(e.target.value)}
+                placeholder="x-access-secret (선택)"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">채널톡 Group ID *</label>
+              <input
+                type="text"
+                value={channeltalkGroupId}
+                onChange={(e) => setChanneltalkGroupId(e.target.value)}
+                placeholder="팀챗 그룹 ID"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Anthropic API Key *</label>
+              <input
+                type="password"
+                value={anthropicApiKey}
+                onChange={(e) => setAnthropicApiKey(e.target.value)}
+                placeholder="sk-ant-..."
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Step 2: 기간 선택 */}
         <div className="mb-6">
-          <DateRangePicker
-            onSearch={handleSearch}
-            loading={step === "fetching" || step === "analyzing"}
-          />
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-700 mb-4">Step 2 — 기간 선택</h2>
+            <DateRangePicker
+              onSearch={handleSearch}
+              loading={step === "fetching" || step === "analyzing"}
+            />
+          </div>
         </div>
 
         {/* 진행 상태 */}
@@ -114,18 +191,12 @@ export default function Home() {
                 <p className="text-2xl font-bold text-gray-900 mt-1">{feedbacks.length}건</p>
               </div>
               <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <p className="text-xs text-gray-500">카테고리 수</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{categories.length}개</p>
+                <p className="text-xs text-gray-500">그룹 수</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{totalGroups}개</p>
               </div>
               <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <p className="text-xs text-gray-500">가장 많은 카테고리</p>
-                <p className="text-sm font-semibold text-gray-900 mt-1 truncate">
-                  {categories.length > 0
-                    ? categories.reduce((a, b) =>
-                        a.feedbackIds.length >= b.feedbackIds.length ? a : b
-                      ).name
-                    : "-"}
-                </p>
+                <p className="text-sm font-semibold text-gray-900 mt-1 truncate">{topCategory}</p>
               </div>
             </div>
 

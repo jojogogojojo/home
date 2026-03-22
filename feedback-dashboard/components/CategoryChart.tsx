@@ -31,8 +31,7 @@ export default function CategoryChart({
 }: CategoryChartProps) {
   const data = categories.map((c) => ({
     name: c.name,
-    count: c.feedbackIds.length,
-    summary: c.summary,
+    count: c.totalCount,
   }));
 
   return (
@@ -53,11 +52,6 @@ export default function CategoryChart({
           <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
           <Tooltip
             formatter={(value) => [`${value}건`, "피드백 수"]}
-            labelFormatter={(label) => {
-              const name = String(label);
-              const cat = categories.find((c) => c.name === name);
-              return cat ? `${name} — ${cat.summary}` : name;
-            }}
           />
           <Bar dataKey="count" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(d) => d.name && onSelect(d.name)}>
             {data.map((entry, index) => (
@@ -93,7 +87,7 @@ export default function CategoryChart({
               style={{ backgroundColor: COLORS[i % COLORS.length] }}
             />
             {cat.name}
-            <span className="font-bold">{cat.feedbackIds.length}</span>
+            <span className="font-bold">{cat.totalCount}</span>
           </button>
         ))}
       </div>

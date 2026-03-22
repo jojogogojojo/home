@@ -3,228 +3,316 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>채널톡 피드백 분석 - 미리보기</title>
+<title>채널톡 피드백 분석</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-  .fade-in { animation: fadeIn .3s ease; }
-  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
-  .card { background:#fff; border-radius:12px; border:1px solid #f0f0f0; box-shadow:0 1px 3px rgba(0,0,0,.06); }
-  .chip { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:999px; font-size:12px; font-weight:500; cursor:pointer; transition:all .2s; border:1px solid #e5e7eb; }
-  .chip.active { border-color:transparent; color:#fff; }
-  .chip:hover { border-color:#d1d5db; }
-  .feedback-card { border:1px solid #f3f4f6; border-radius:10px; padding:14px; transition:border-color .2s; }
-  .feedback-card:hover { border-color:#e5e7eb; }
+  .fade-in { animation: fadeIn .25s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+  .card { background:#fff; border-radius:12px; border:1px solid #e5e7eb; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  .tab { padding:6px 14px; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; color:#6b7280; transition:all .15s; white-space:nowrap; }
+  .tab.active { background:#2563eb; color:#fff; }
+  .tab:not(.active):hover { background:#f3f4f6; color:#374151; }
+  .group-card { border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; transition:border-color .15s; }
+  .group-card:hover { border-color:#d1d5db; }
+  .group-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; cursor:pointer; background:#fff; }
+  .group-header:hover { background:#f9fafb; }
+  .feedback-item { padding:12px 16px; border-top:1px solid #f3f4f6; background:#fafafa; }
+  .feedback-item:hover { background:#f3f4f6; }
+  .badge { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; border-radius:99px; font-size:11px; font-weight:700; padding:0 6px; }
+  input[type=password], input[type=text], input[type=date] {
+    border:1px solid #d1d5db; border-radius:8px; padding:8px 12px; font-size:13px; width:100%; outline:none; transition:border-color .15s;
+  }
+  input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
-<div class="max-w-5xl mx-auto px-4 py-8">
+<div class="max-w-4xl mx-auto px-4 py-8">
 
   <!-- 헤더 -->
-  <div class="mb-8">
-    <h1 class="text-2xl font-bold text-gray-900">채널톡 피드백 분석</h1>
-    <p class="text-sm text-gray-500 mt-1">기간을 선택하면 FeedbackBot 메시지를 수집하고 AI로 자동 분류합니다.</p>
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-gray-900">채널톡 피드백 분석</h1>
+    <p class="text-sm text-gray-500 mt-0.5">FeedbackBot 메시지를 수집하고 AI로 카테고리별 분류·요약합니다.</p>
   </div>
 
-  <!-- 날짜 선택 -->
-  <div class="card p-5 mb-6 flex flex-wrap items-end gap-4">
-    <div class="flex flex-col gap-1">
-      <label class="text-xs font-medium text-gray-500">시작일</label>
-      <input type="date" value="2026-02-20" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"/>
+  <!-- STEP 1: API 키 입력 -->
+  <div id="step-api" class="card p-6 mb-5">
+    <h2 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+      <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">1</span>
+      API 키 설정
+    </h2>
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">채널톡 API Key</label>
+        <input type="password" id="ct-key" placeholder="x-access-key" value="••••••••••••••••"/>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">채널톡 API Secret</label>
+        <input type="password" id="ct-secret" placeholder="x-access-secret" value="••••••••••••••••"/>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">채널톡 Group ID <span class="text-gray-400">(피드백 채널)</span></label>
+        <input type="text" id="ct-group" placeholder="group_xxxxxxxx" value="group_feedback_01"/>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">Anthropic API Key</label>
+        <input type="password" id="anthropic-key" placeholder="sk-ant-..." value="••••••••••••••••"/>
+      </div>
     </div>
-    <div class="flex flex-col gap-1">
-      <label class="text-xs font-medium text-gray-500">종료일</label>
-      <input type="date" value="2026-03-22" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"/>
-    </div>
-    <button onclick="runDemo()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors">피드백 분석</button>
+    <p class="text-xs text-gray-400 mt-3 flex items-center gap-1">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      키는 브라우저 세션에만 저장되며 서버로 전송되지 않습니다.
+    </p>
   </div>
 
-  <div id="loading" class="hidden items-center gap-3 text-sm text-gray-500 mb-6">
-    <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+  <!-- STEP 2: 기간 선택 -->
+  <div id="step-date" class="card p-5 mb-5">
+    <h2 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+      <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">2</span>
+      조회 기간
+    </h2>
+    <div class="flex flex-wrap items-end gap-3">
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">시작일</label>
+        <input type="date" value="2026-02-20" style="width:auto"/>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">종료일</label>
+        <input type="date" value="2026-03-22" style="width:auto"/>
+      </div>
+      <button onclick="runDemo()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors h-[38px]">
+        피드백 분석
+      </button>
+    </div>
+  </div>
+
+  <!-- 로딩 -->
+  <div id="loading" class="hidden items-center gap-3 text-sm text-gray-500 mb-5 card p-4">
+    <svg class="spin w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
     <span id="loading-text">채널톡에서 피드백 수집 중...</span>
   </div>
 
+  <!-- 결과 -->
   <div id="result" class="hidden fade-in">
-    <!-- 요약 카드 3개 -->
-    <div class="grid grid-cols-3 gap-4 mb-6">
-      <div class="card p-4"><p class="text-xs text-gray-500">총 피드백</p><p class="text-2xl font-bold text-gray-900 mt-1">24건</p></div>
-      <div class="card p-4"><p class="text-xs text-gray-500">카테고리 수</p><p class="text-2xl font-bold text-gray-900 mt-1">6개</p></div>
-      <div class="card p-4"><p class="text-xs text-gray-500">가장 많은 카테고리</p><p class="text-sm font-semibold text-gray-900 mt-1">UX/인터페이스 개선</p></div>
-    </div>
 
-    <!-- 차트 -->
-    <div class="card p-5 mb-6">
-      <h2 class="text-base font-semibold text-gray-800 mb-4">카테고리별 피드백 수</h2>
-      <canvas id="chart" height="120"></canvas>
-      <div class="flex flex-wrap gap-2 mt-4" id="chips"></div>
-    </div>
-
-    <!-- 피드백 목록 -->
-    <div class="card p-5">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h2 class="text-base font-semibold text-gray-800" id="list-title">전체 피드백</h2>
-          <p class="text-xs text-gray-500 mt-0.5" id="list-summary"></p>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-gray-400" id="list-count">24건</span>
-          <button onclick="clearFilter()" id="clear-btn" class="hidden text-xs text-blue-500 hover:text-blue-700 underline">전체 보기</button>
-        </div>
+    <!-- 요약 -->
+    <div class="grid grid-cols-3 gap-3 mb-5">
+      <div class="card p-4">
+        <p class="text-xs text-gray-500">총 피드백</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1" id="total-count">24건</p>
+        <p class="text-xs text-gray-400 mt-0.5">2026.02.20 – 03.22</p>
       </div>
-      <div class="space-y-3 max-h-[500px] overflow-y-auto" id="feedback-list"></div>
+      <div class="card p-4">
+        <p class="text-xs text-gray-500">유사 피드백 그룹</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1" id="group-count">11개</p>
+        <p class="text-xs text-gray-400 mt-0.5">AI 자동 묶음</p>
+      </div>
+      <div class="card p-4">
+        <p class="text-xs text-gray-500">가장 많은 그룹</p>
+        <p class="text-sm font-semibold text-gray-900 mt-1 leading-snug" id="top-group">팔로업 알림 세분화</p>
+        <p class="text-xs text-blue-600 mt-0.5 font-medium" id="top-count">5건</p>
+      </div>
     </div>
+
+    <!-- 카테고리 탭 -->
+    <div class="flex gap-1.5 overflow-x-auto pb-1 mb-4 scrollbar-none">
+      <button class="tab active" onclick="switchTab(this,'전체')">전체 <span class="ml-1 opacity-70" id="tab-count-전체">24</span></button>
+      <button class="tab" onclick="switchTab(this,'AI')">AI <span class="ml-1 opacity-70">5</span></button>
+      <button class="tab" onclick="switchTab(this,'워크플로우')">워크플로우 <span class="ml-1 opacity-70">6</span></button>
+      <button class="tab" onclick="switchTab(this,'유저챗')">유저챗 <span class="ml-1 opacity-70">5</span></button>
+      <button class="tab" onclick="switchTab(this,'통계(리포트)')">통계(리포트) <span class="ml-1 opacity-70">3</span></button>
+      <button class="tab" onclick="switchTab(this,'전화')">전화 <span class="ml-1 opacity-70">2</span></button>
+      <button class="tab" onclick="switchTab(this,'팀챗')">팀챗 <span class="ml-1 opacity-70">2</span></button>
+      <button class="tab" onclick="switchTab(this,'기타')">기타 <span class="ml-1 opacity-70">1</span></button>
+    </div>
+
+    <!-- 그룹 목록 -->
+    <div id="group-list" class="space-y-2"></div>
   </div>
+
 </div>
 
 <script>
-const COLORS = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4'];
+const CATEGORY_COLORS = {
+  'AI': '#8b5cf6', '워크플로우': '#f59e0b', '유저챗': '#3b82f6',
+  '통계(리포트)': '#10b981', '전화': '#ef4444', '팀챗': '#06b6d4', '기타': '#9ca3af'
+};
 
-const categories = [
-  { name:'UX/인터페이스 개선', summary:'화면 구성 및 사용 흐름에 대한 개선 요청이 가장 많음', ids:[0,1,2,3,4,5,6] },
-  { name:'알림/팔로업 설정', summary:'워크플로우별 알림 on/off 및 항목 세분화 요구', ids:[7,8,9,10] },
-  { name:'상담 이력 관리', summary:'상담 종료 후에도 목록에서 확인 가능해야 한다는 요청', ids:[11,12,13,14] },
-  { name:'검색 및 필터', summary:'상담 내역 검색 기능 강화 요청', ids:[15,16,17] },
-  { name:'연동 기능', summary:'외부 서비스(Linear, Slack 등) 연동 관련 피드백', ids:[18,19,20] },
-  { name:'성능/속도', summary:'로딩 속도 및 응답 지연 관련 불편 사항', ids:[21,22,23] },
+const groups = [
+  {
+    id:'g1', category:'워크플로우', title:'팔로업 알림 세분화 요청', count:5,
+    summary:'워크플로우별 팔로업 알림 on/off 및 항목 조절 기능 요청',
+    feedbacks:[
+      { id:'f1', title:'[KR] 워크플로우별 팔로업 알림 on/off 및 항목 조절 기능', channel:'오늘수거', plan:'growth', date:'2026-03-12', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc123' },
+      { id:'f2', title:'[KR] 특정 고객에게 팔로업 알림 안 보내는 기능', channel:'클리니어', plan:'growth', date:'2026-03-09', author:'터너', threadUrl:'https://desk.channel.io/threads/abc124' },
+      { id:'f3', title:'[KR] 팔로업 알림 빈도 조절이 필요해요', channel:'오늘수거', plan:'starter', date:'2026-03-06', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc125' },
+      { id:'f4', title:'[KR] 팀별 팔로업 알림 설정 분리', channel:'마켓컬리', plan:'enterprise', date:'2026-03-04', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc126' },
+      { id:'f5', title:'[KR] 특정 시간대에만 팔로업 알림 받기', channel:'클리니어', plan:'growth', date:'2026-03-02', author:'터너', threadUrl:'https://desk.channel.io/threads/abc127' },
+    ]
+  },
+  {
+    id:'g2', category:'유저챗', title:'상담 종료 후 이력 유지 요청', count:4,
+    summary:'고객이 상담 나가기 후에도 상담 목록에 남아 있어야 한다는 요청',
+    feedbacks:[
+      { id:'f6', title:'[KR] 고객이 상담 나가기 해도 목록에 남았으면 좋겠어요', channel:'클리니어', plan:'growth', date:'2026-03-11', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc128' },
+      { id:'f7', title:'[KR] 종료된 상담을 다시 열 수 있는 기능', channel:'배민', plan:'enterprise', date:'2026-03-08', author:'터너', threadUrl:'https://desk.channel.io/threads/abc129' },
+      { id:'f8', title:'[KR] 상담 히스토리 내보내기', channel:'스타트업A', plan:'starter', date:'2026-03-05', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc130' },
+      { id:'f9', title:'[KR] 상담 메모 강화 요청', channel:'오늘수거', plan:'growth', date:'2026-03-02', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc131' },
+    ]
+  },
+  {
+    id:'g3', category:'AI', title:'AI 답변 정확도 개선', count:3,
+    summary:'AI 자동 답변이 맥락을 잘못 이해하는 경우 개선 요청',
+    feedbacks:[
+      { id:'f10', title:'[KR] AI 답변이 질문 맥락을 잘못 파악해요', channel:'마켓컬리', plan:'enterprise', date:'2026-03-10', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc132' },
+      { id:'f11', title:'[KR] AI 자동분류 카테고리 추가 요청', channel:'배민', plan:'enterprise', date:'2026-03-07', author:'터너', threadUrl:'https://desk.channel.io/threads/abc133' },
+      { id:'f12', title:'[KR] AI 답변 톤 설정 기능', channel:'오늘수거', plan:'growth', date:'2026-03-04', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc134' },
+    ]
+  },
+  {
+    id:'g4', category:'통계(리포트)', title:'리포트 커스터마이징', count:3,
+    summary:'원하는 지표만 골라서 리포트를 만들 수 있게 해달라는 요청',
+    feedbacks:[
+      { id:'f13', title:'[KR] 리포트 지표 커스터마이징 기능', channel:'마켓컬리', plan:'enterprise', date:'2026-03-09', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc135' },
+      { id:'f14', title:'[KR] 데이터 CSV 내보내기 기능', channel:'배민', plan:'enterprise', date:'2026-03-06', author:'터너', threadUrl:'https://desk.channel.io/threads/abc136' },
+      { id:'f15', title:'[KR] 주간/월간 리포트 자동 발송', channel:'클리니어', plan:'growth', date:'2026-03-03', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc137' },
+    ]
+  },
+  {
+    id:'g5', category:'AI', title:'AI 자동 분류 개선', count:2,
+    summary:'AI가 상담을 잘못된 카테고리로 분류하는 경우 수정 요청',
+    feedbacks:[
+      { id:'f16', title:'[KR] AI 상담 분류 오류 수정', channel:'스타트업A', plan:'starter', date:'2026-03-08', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc138' },
+      { id:'f17', title:'[KR] AI 분류 학습 피드백 기능', channel:'오늘수거', plan:'growth', date:'2026-03-05', author:'터너', threadUrl:'https://desk.channel.io/threads/abc139' },
+    ]
+  },
+  {
+    id:'g6', category:'유저챗', title:'채팅 UI 개선', count:2,
+    summary:'채팅창 크기 조절 및 미리보기 텍스트 길이 개선 요청',
+    feedbacks:[
+      { id:'f18', title:'[KR] 채팅 목록 미리보기 텍스트가 너무 짧아요', channel:'모두의셔틀', plan:'starter', date:'2026-03-07', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc140' },
+      { id:'f19', title:'[KR] 상담 창 크기 조절 기능', channel:'스타트업A', plan:'starter', date:'2026-03-04', author:'터너', threadUrl:'https://desk.channel.io/threads/abc141' },
+    ]
+  },
+  {
+    id:'g7', category:'워크플로우', title:'워크플로우 조건 추가', count:2,
+    summary:'워크플로우 분기 조건을 더 다양하게 설정할 수 있게 해달라는 요청',
+    feedbacks:[
+      { id:'f20', title:'[KR] 워크플로우 조건에 고객 등급 추가', channel:'마켓컬리', plan:'enterprise', date:'2026-03-11', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc142' },
+      { id:'f21', title:'[KR] 워크플로우 A/B 테스트 기능', channel:'배민', plan:'enterprise', date:'2026-03-08', author:'터너', threadUrl:'https://desk.channel.io/threads/abc143' },
+    ]
+  },
+  {
+    id:'g8', category:'전화', title:'통화 녹음 및 전사 기능', count:2,
+    summary:'전화 상담 녹음 및 텍스트 변환 기능 요청',
+    feedbacks:[
+      { id:'f22', title:'[KR] 전화 상담 자동 녹음 기능', channel:'클리니어', plan:'growth', date:'2026-03-10', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc144' },
+      { id:'f23', title:'[KR] 통화 내용 텍스트 전사 기능', channel:'오늘수거', plan:'growth', date:'2026-03-07', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc145' },
+    ]
+  },
+  {
+    id:'g9', category:'팀챗', title:'팀챗 알림 커스터마이징', count:2,
+    summary:'특정 키워드나 멘션 시에만 알림을 받고 싶다는 요청',
+    feedbacks:[
+      { id:'f24', title:'[KR] 팀챗 키워드 알림 기능', channel:'배민', plan:'enterprise', date:'2026-03-09', author:'터너', threadUrl:'https://desk.channel.io/threads/abc146' },
+      { id:'f25', title:'[KR] 팀챗 멘션 알림만 받기', channel:'마켓컬리', plan:'enterprise', date:'2026-03-06', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc147' },
+    ]
+  },
+  {
+    id:'g10', category:'유저챗', title:'검색 및 필터 강화', count:2,
+    summary:'상담 내용 전문 검색 및 날짜 필터 기능 요청',
+    feedbacks:[
+      { id:'f26', title:'[KR] 상담 내용 전문 검색 기능', channel:'클리니어', plan:'growth', date:'2026-03-08', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc148' },
+      { id:'f27', title:'[KR] 날짜 범위 필터 기능', channel:'배민', plan:'enterprise', date:'2026-03-05', author:'터너', threadUrl:'https://desk.channel.io/threads/abc149' },
+    ]
+  },
+  {
+    id:'g11', category:'기타', title:'기타 개선 요청', count:1,
+    summary:'특정 카테고리에 속하지 않는 기타 개선 요청',
+    feedbacks:[
+      { id:'f28', title:'[KR] 다크모드 지원 요청', channel:'스타트업A', plan:'starter', date:'2026-03-06', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc150' },
+    ]
+  },
 ];
 
-const feedbacks = [
-  { id:0, title:'[KR] 미트할 때 특정 유저/화면을 크게 볼 수 있으면 좋겠어요', userVoice:'미트할 때 특정 유저/화면을 크게 볼 수 있으면 좋겠어요', managerComment:'', channelName:'터너', servicePlan:'growth', date:'2026-03-10', author:'터너' },
-  { id:1, title:'[KR] 채팅 목록에서 미리보기 텍스트가 잘려서 불편해요', userVoice:'채팅 목록에서 미리보기 텍스트가 너무 짧게 잘려서 전체 내용을 파악하기 어렵습니다. 좀 더 길게 보여주면 좋겠어요.', managerComment:'피드백 감사합니다! 개선 예정입니다.', channelName:'모두의셔틀', servicePlan:'starter', date:'2026-03-08', author:'베이지' },
-  { id:2, title:'[KR] 다크모드 지원해주세요', userVoice:'야간에 작업할 때 눈이 너무 피로합니다. 다크모드를 지원해주시면 좋겠어요.', managerComment:'/', channelName:'클리니어', servicePlan:'growth', date:'2026-03-07', author:'주피터' },
-  { id:3, title:'[KR] 모바일 앱 UI가 PC와 너무 달라요', userVoice:'모바일에서 작업할 때 PC와 UI가 너무 달라서 적응이 어렵습니다. 일관성 있게 맞춰주세요.', managerComment:'', channelName:'오늘수거', servicePlan:'growth', date:'2026-03-05', author:'베이지' },
-  { id:4, title:'[KR] 상담 창 크기 조절이 안 돼요', userVoice:'상담 창의 크기를 조절할 수 없어서 긴 메시지를 읽을 때 불편합니다.', managerComment:'/', channelName:'스타트업A', servicePlan:'starter', date:'2026-03-03', author:'터너' },
-  { id:5, title:'[KR] 폰트 크기를 사용자가 설정할 수 있으면 좋겠어요', userVoice:'글씨가 작아서 읽기 힘듭니다. 사용자가 폰트 크기를 조절할 수 있으면 좋겠어요.', managerComment:'', channelName:'마켓컬리', servicePlan:'enterprise', date:'2026-03-01', author:'주피터' },
-  { id:6, title:'[KR] 사이드바 메뉴를 접고 펼 수 있으면 좋겠어요', userVoice:'화면이 좁을 때 사이드바가 공간을 많이 차지합니다. 접고 펼 수 있게 해주세요.', managerComment:'/', channelName:'배민', servicePlan:'enterprise', date:'2026-02-28', author:'베이지' },
-  { id:7, title:'[KR] 워크플로우별 팔로업 알림 on/off 및 항목 조절 기능', userVoice:'워크플로우 입력폼을 통해 이미 연락처를 받았는데 팔로업 알림이 중복으로 처리되면 고객 입장에서 정보를 두 번 작성해야 하는 불편함이 있습니다.', managerComment:'/', channelName:'오늘수거', servicePlan:'growth', date:'2026-03-12', author:'주피터' },
-  { id:8, title:'[KR] 특정 시간대에만 알림 받고 싶어요', userVoice:'업무 시간 외에도 알림이 와서 방해가 됩니다. 알림 시간대를 설정할 수 있으면 좋겠어요.', managerComment:'', channelName:'클리니어', servicePlan:'growth', date:'2026-03-09', author:'터너' },
-  { id:9, title:'[KR] 알림 빈도 조절 기능이 필요해요', userVoice:'같은 상담에서 알림이 너무 자주 옵니다. 빈도를 조절할 수 있으면 좋겠어요.', managerComment:'/', channelName:'오늘수거', servicePlan:'starter', date:'2026-03-06', author:'베이지' },
-  { id:10, title:'[KR] 팀별 알림 설정 분리가 필요해요', userVoice:'팀마다 담당 업무가 달라서 알림을 팀별로 다르게 설정할 수 있으면 좋겠습니다.', managerComment:'', channelName:'마켓컬리', servicePlan:'enterprise', date:'2026-03-04', author:'주피터' },
-  { id:11, title:'[KR] 고객이 상담 나가기 해도 해당 고객의 상담 목록에 남았으면 좋겠어요', userVoice:'고객이 직접 상담을 종료(상담 나가기)했을 때, 해당 상담 내역이 상담 목록에서 보이지 않게 되는 것은 상식적으로 납득하기 어렵습니다.', managerComment:'저희도 이 부분이 상담 진행에 매우 불편합니다..!', channelName:'클리니어', servicePlan:'growth', date:'2026-03-11', author:'베이지' },
-  { id:12, title:'[KR] 종료된 상담을 다시 열 수 있는 기능이 필요해요', userVoice:'상담이 종료된 후에도 고객이 재문의할 경우 새로운 상담으로 시작되어 이전 맥락을 파악하기 어렵습니다.', managerComment:'', channelName:'배민', servicePlan:'enterprise', date:'2026-03-08', author:'터너' },
-  { id:13, title:'[KR] 상담 히스토리 내보내기 기능', userVoice:'특정 고객의 전체 상담 이력을 PDF나 CSV로 내보낼 수 있으면 좋겠습니다.', managerComment:'/', channelName:'스타트업A', servicePlan:'starter', date:'2026-03-05', author:'주피터' },
-  { id:14, title:'[KR] 상담 메모 기능 강화가 필요해요', userVoice:'상담 중 메모를 남기는 기능이 너무 단순합니다. 서식 편집이나 파일 첨부가 가능하면 좋겠어요.', managerComment:'', channelName:'오늘수거', servicePlan:'growth', date:'2026-03-02', author:'베이지' },
-  { id:15, title:'[KR] 상담 내용 전문 검색이 안 돼요', userVoice:'상담 내용으로 검색이 안 되어서 과거 상담을 찾을 때 매우 불편합니다.', managerComment:'/', channelName:'클리니어', servicePlan:'growth', date:'2026-03-10', author:'터너' },
-  { id:16, title:'[KR] 필터 조건을 저장하고 싶어요', userVoice:'자주 쓰는 필터 조건을 저장해두고 빠르게 불러올 수 있으면 좋겠어요.', managerComment:'', channelName:'마켓컬리', servicePlan:'enterprise', date:'2026-03-07', author:'주피터' },
-  { id:17, title:'[KR] 날짜 범위로 상담 검색이 가능하면 좋겠어요', userVoice:'특정 기간의 상담만 필터링해서 볼 수 있으면 업무에 많이 도움이 될 것 같아요.', managerComment:'/', channelName:'배민', servicePlan:'enterprise', date:'2026-03-03', author:'베이지' },
-  { id:18, title:'[KR] Linear 연동 시 상태 자동 동기화 기능', userVoice:'Linear에서 티켓 상태가 변경되면 채널톡에도 자동으로 반영되면 좋겠어요.', managerComment:'', channelName:'오늘수거', servicePlan:'growth', date:'2026-03-09', author:'터너' },
-  { id:19, title:'[KR] Slack 연동 알림이 가끔 누락돼요', userVoice:'Slack으로 오는 상담 알림이 가끔 오지 않아서 대응이 늦어지는 경우가 있습니다.', managerComment:'/', channelName:'클리니어', servicePlan:'growth', date:'2026-03-06', author:'베이지' },
-  { id:20, title:'[KR] CRM 연동 데이터 매핑 오류가 자주 발생해요', userVoice:'CRM과 연동할 때 고객 데이터가 잘못 매핑되는 경우가 있어서 수동으로 수정해야 합니다.', managerComment:'확인 중입니다.', channelName:'마켓컬리', servicePlan:'enterprise', date:'2026-03-02', author:'주피터' },
-  { id:21, title:'[KR] 상담 목록 로딩이 너무 느려요', userVoice:'상담이 많아질수록 목록 로딩이 매우 느려집니다. 개선이 필요합니다.', managerComment:'/', channelName:'배민', servicePlan:'enterprise', date:'2026-03-11', author:'터너' },
-  { id:22, title:'[KR] 파일 첨부 시 업로드가 자주 실패해요', userVoice:'이미지나 파일을 첨부할 때 업로드가 실패하는 경우가 빈번합니다.', managerComment:'', channelName:'스타트업A', servicePlan:'starter', date:'2026-03-08', author:'베이지' },
-  { id:23, title:'[KR] 대량 메시지 발송 후 응답 속도가 떨어져요', userVoice:'마케팅 메시지를 대량 발송한 후 전반적인 응답 속도가 느려집니다.', managerComment:'/', channelName:'마켓컬리', servicePlan:'enterprise', date:'2026-03-05', author:'주피터' },
-];
-
-let selectedCat = null;
-let chartInstance = null;
+let currentTab = '전체';
+let openGroups = new Set();
 
 function runDemo() {
   const loading = document.getElementById('loading');
   const result = document.getElementById('result');
-  loading.classList.remove('hidden');
-  loading.classList.add('flex');
+  loading.classList.remove('hidden'); loading.classList.add('flex');
   result.classList.add('hidden');
-
+  setTimeout(() => { document.getElementById('loading-text').textContent = 'Claude AI로 유사 피드백 묶는 중...'; }, 1500);
   setTimeout(() => {
-    document.getElementById('loading-text').textContent = 'Claude AI로 분류 중...';
-  }, 1200);
-
-  setTimeout(() => {
-    loading.classList.add('hidden');
-    loading.classList.remove('flex');
-    result.classList.remove('hidden');
-    result.classList.add('fade-in');
-    renderChart();
-    renderChips();
-    renderList(null);
-  }, 2400);
+    loading.classList.add('hidden'); loading.classList.remove('flex');
+    result.classList.remove('hidden'); result.classList.add('fade-in');
+    renderGroups(currentTab);
+  }, 2800);
 }
 
-function renderChart() {
-  if (chartInstance) chartInstance.destroy();
-  const ctx = document.getElementById('chart').getContext('2d');
-  chartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: categories.map(c => c.name),
-      datasets: [{
-        data: categories.map(c => c.ids.length),
-        backgroundColor: COLORS,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false }, tooltip: {
-        callbacks: {
-          label: ctx => `${ctx.raw}건`,
-          afterLabel: ctx => categories[ctx.dataIndex].summary
-        }
-      }},
-      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { ticks: { font: { size: 11 } } } },
-      onClick: (_, els) => { if (els.length) selectCat(categories[els[0].index].name); }
-    }
-  });
+function switchTab(el, tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentTab = tab;
+  renderGroups(tab);
 }
 
-function renderChips() {
-  const el = document.getElementById('chips');
-  el.innerHTML = categories.map((c, i) => `
-    <button onclick="selectCat('${c.name}')" id="chip-${i}" class="chip" style="--color:${COLORS[i]}">
-      <span style="width:8px;height:8px;border-radius:50%;background:${COLORS[i]};display:inline-block"></span>
-      ${c.name} <strong>${c.ids.length}</strong>
-    </button>
-  `).join('');
-}
-
-function selectCat(name) {
-  selectedCat = selectedCat === name ? null : name;
-  // 칩 스타일 업데이트
-  categories.forEach((c, i) => {
-    const chip = document.getElementById(`chip-${i}`);
-    if (selectedCat === c.name) {
-      chip.classList.add('active');
-      chip.style.backgroundColor = COLORS[i];
-    } else {
-      chip.classList.remove('active');
-      chip.style.backgroundColor = '';
-    }
-  });
-  renderList(selectedCat);
-}
-
-function clearFilter() {
-  selectCat(null);
-  selectedCat = null;
-  renderChips();
-  renderList(null);
-}
-
-function renderList(cat) {
-  const cat_data = cat ? categories.find(c => c.name === cat) : null;
-  const filtered = cat_data ? feedbacks.filter(f => cat_data.ids.includes(f.id)) : feedbacks;
-
-  document.getElementById('list-title').textContent = cat ? `"${cat}" 피드백` : '전체 피드백';
-  document.getElementById('list-summary').textContent = cat_data ? cat_data.summary : '';
-  document.getElementById('list-count').textContent = `${filtered.length}건`;
-  document.getElementById('clear-btn').classList.toggle('hidden', !cat);
-
-  document.getElementById('feedback-list').innerHTML = filtered.map(f => `
-    <div class="feedback-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
-        <span style="font-size:13px;font-weight:500;color:#1f2937;line-height:1.4">${f.title}</span>
-        <span style="font-size:11px;color:#9ca3af;white-space:nowrap">${f.date}</span>
+function renderGroups(tab) {
+  const filtered = tab === '전체' ? groups : groups.filter(g => g.category === tab);
+  const sorted = [...filtered].sort((a,b) => b.count - a.count);
+  const container = document.getElementById('group-list');
+  if (sorted.length === 0) {
+    container.innerHTML = '<p class="text-sm text-gray-400 text-center py-10">해당 카테고리의 피드백이 없습니다.</p>';
+    return;
+  }
+  container.innerHTML = sorted.map(g => {
+    const color = CATEGORY_COLORS[g.category] || '#9ca3af';
+    const isOpen = openGroups.has(g.id);
+    return `
+    <div class="group-card">
+      <div class="group-header" onclick="toggleGroup('${g.id}')">
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="badge text-white flex-shrink-0" style="background:${color}">${g.count}</span>
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-gray-800 truncate">${g.title}</p>
+            <p class="text-xs text-gray-400 mt-0.5 truncate">${g.summary}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0 ml-3">
+          <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:${color}18;color:${color}">${g.category}</span>
+          <svg class="w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}" id="arrow-${g.id}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+        </div>
       </div>
-      ${f.userVoice ? `<p style="font-size:12px;color:#4b5563;line-height:1.6;margin-bottom:8px">${f.userVoice}</p>` : ''}
-      ${f.managerComment && f.managerComment !== '/' ? `<div style="background:#eff6ff;border-radius:6px;padding:8px 12px;margin-bottom:8px"><p style="font-size:12px;color:#1d4ed8"><strong>Manager: </strong>${f.managerComment}</p></div>` : ''}
-      <div style="display:flex;flex-wrap:wrap;gap:6px">
-        ${f.channelName ? `<span style="font-size:11px;background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:4px">${f.channelName}</span>` : ''}
-        ${f.servicePlan ? `<span style="font-size:11px;background:#f5f3ff;color:#7c3aed;padding:2px 8px;border-radius:4px">${f.servicePlan}</span>` : ''}
-        ${f.author ? `<span style="font-size:11px;color:#9ca3af">by @${f.author}</span>` : ''}
+      <div id="items-${g.id}" class="${isOpen ? '' : 'hidden'}">
+        ${g.feedbacks.map(f => `
+          <div class="feedback-item">
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-xs text-gray-700 leading-relaxed flex-1">${f.title}</p>
+              <a href="${f.threadUrl}" target="_blank"
+                class="flex-shrink-0 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 font-medium whitespace-nowrap">
+                스레드
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+              </a>
+            </div>
+            <div class="flex flex-wrap gap-1.5 mt-2">
+              <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">${f.channel}</span>
+              <span class="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded">${f.plan}</span>
+              <span class="text-xs text-gray-400">${f.date} · @${f.author}</span>
+            </div>
+          </div>
+        `).join('')}
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
+}
+
+function toggleGroup(id) {
+  if (openGroups.has(id)) openGroups.delete(id);
+  else openGroups.add(id);
+  renderGroups(currentTab);
 }
 </script>
 </body>

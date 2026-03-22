@@ -7,6 +7,7 @@ export interface Feedback {
   servicePlan: string;
   createdAt: string;
   author: string;
+  threadUrl?: string;
 }
 
 interface ChannelTalkMessage {
@@ -22,7 +23,7 @@ interface ChannelTalkResponse {
   next?: string;
 }
 
-function parseFeedbackMessage(message: ChannelTalkMessage): Feedback | null {
+function parseFeedbackMessage(message: ChannelTalkMessage, groupId: string): Feedback | null {
   const text = message.plainText || "";
 
   // FeedbackBot 메시지 형식 파싱
@@ -62,6 +63,7 @@ function parseFeedbackMessage(message: ChannelTalkMessage): Feedback | null {
     servicePlan,
     createdAt: new Date(message.createdAt).toISOString(),
     author,
+    threadUrl: `https://desk.channel.io/team-chats/${groupId}`,
   };
 }
 
@@ -111,7 +113,7 @@ export async function fetchFeedbacks(
         msg.personType === "bot" ||
         (msg.plainText && msg.plainText.includes("User voice"))
       ) {
-        const feedback = parseFeedbackMessage(msg);
+        const feedback = parseFeedbackMessage(msg, channelId);
         if (feedback) allFeedbacks.push(feedback);
       }
     }
