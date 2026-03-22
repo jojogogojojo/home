@@ -1,3 +1,6 @@
 [submodule ".superpowers"]
 	path = .superpowers
 	url = https://github.com/obra/superpowers
+[submodule ".plugins-native"]
+	path = .plugins-native
+	url = https://github.com/team-attention/plugins-for-claude-natives
