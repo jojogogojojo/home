@@ -32,3 +32,7 @@
 @.plugins-native/plugins/session-wrap/skills/session-wrap/SKILL.md
 @.plugins-native/plugins/team-assemble/skills/team-assemble/SKILL.md
 @.plugins-native/plugins/youtube-digest/skills/youtube-digest/SKILL.md
+
+# Local skills
+
+@skills/deploy-notify/SKILL.md
