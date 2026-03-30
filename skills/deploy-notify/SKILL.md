@@ -12,23 +12,24 @@
 
 ---
 
-## 사전 조건: ChannelTalk Webhook URL 확인
+## 사전 조건: ChannelTalk Access Key 확인
 
-다음 순서로 `CHANNELTALK_WEBHOOK_URL` 환경 변수를 확인한다:
+다음 순서로 `CHANNELTALK_ACCESS_KEY` 환경 변수를 확인한다:
 
 ```bash
 # 1. 이미 환경에 설정되어 있는지 확인
-echo "${CHANNELTALK_WEBHOOK_URL:+set}"
+echo "${CHANNELTALK_ACCESS_KEY:+set}"
 
 # 2. 없으면 로컬 설정 파일에서 로드
 source ~/.deploy-notify.env 2>/dev/null
 ```
 
-`CHANNELTALK_WEBHOOK_URL`이 여전히 미설정이면 다음 오류 메시지를 출력하고 중단:
+`CHANNELTALK_ACCESS_KEY`가 여전히 미설정이면 다음 오류 메시지를 출력하고 중단:
 
-> ❌ CHANNELTALK_WEBHOOK_URL이 설정되지 않았습니다.
-> `~/.deploy-notify.env` 파일을 생성하고 웹훅 URL을 입력해주세요.
+> ❌ CHANNELTALK_ACCESS_KEY가 설정되지 않았습니다.
+> `~/.deploy-notify.env` 파일을 생성하고 Access Key를 입력해주세요.
 > 참고: `config/deploy-notify.env.example`
+> 발급: ChannelTalk 관리자 콘솔 → 설정 → 개발 → Open API → Access Key
 
 ---
 
@@ -129,15 +130,21 @@ ChannelTalk에 아래 메시지를 발송하고 종료한다:
 
 ---
 
-## Step 6 — ChannelTalk Webhook POST
+## Step 6 — ChannelTalk Open API POST
 
-`jq`를 사용해 JSON을 안전하게 구성하고 `curl`로 POST한다:
+`jq`를 사용해 JSON을 안전하게 구성하고 `curl`로 POST한다.
+
+대상 그룹: `groups/356599`
 
 ```bash
 HTTP_STATUS=$(curl -s -o /tmp/channeltalk_response.txt -w "%{http_code}" \
-  -X POST "$CHANNELTALK_WEBHOOK_URL" \
+  -X POST "https://api.channel.io/open/v5/group-messages" \
+  -H "x-access-key: $CHANNELTALK_ACCESS_KEY" \
   -H "Content-Type: application/json" \
-  -d "$(jq -n --arg text "$MESSAGE" '{"text": $text}')")
+  -d "$(jq -n --arg msg "$MESSAGE" '{
+    "groupKey": "groups/356599",
+    "blocks": [{"type": "text", "value": $msg}]
+  }')")
 
 if [[ "$HTTP_STATUS" =~ ^2 ]]; then
   echo "✅ ChannelTalk 발송 성공 (HTTP $HTTP_STATUS)"
@@ -148,7 +155,7 @@ else
 fi
 ```
 
-> ⚠️ 웹훅 URL은 절대 echo하거나 로그에 출력하지 않는다.
+> ⚠️ Access Key는 절대 echo하거나 로그에 출력하지 않는다.
 
 ---
 
@@ -167,6 +174,6 @@ fi
 |------|------|
 | Linear API 오류 | 즉시 중단, 오류 내용 출력 |
 | Notion/Figma 검색 오류 | 해당 링크 생략 후 계속 진행 |
-| CHANNELTALK_WEBHOOK_URL 미설정 | 즉시 중단, 설정 안내 출력 |
+| CHANNELTALK_ACCESS_KEY 미설정 | 즉시 중단, 설정 안내 출력 |
 | ChannelTalk POST 실패 (비2xx) | 상태코드 + 응답 body 출력 후 exit 1 |
 | `jq` 미설치 | "jq가 설치되지 않았습니다. \`brew install jq\` 또는 \`apt install jq\`로 설치해주세요." 출력 후 중단 |
