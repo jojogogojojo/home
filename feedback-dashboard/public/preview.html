@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>채널톡 피드백 분석</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #090A0F; }
+
+  /* 별 배경 */
+  #stars-bg {
+    position: fixed; inset: 0; z-index: 0;
+    background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+  }
+  @keyframes animStar {
+    from { transform: translateY(0px); }
+    to   { transform: translateY(-2000px); }
+  }
+  .stars-layer { position:fixed; left:0; top:0; background:transparent; }
+  #app-root { position: relative; z-index: 1; }
+  .fade-in { animation: fadeIn .25s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+  .card { background:#fff; border-radius:12px; border:1px solid #e5e7eb; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  .tab { padding:6px 14px; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; color:#6b7280; transition:all .15s; white-space:nowrap; }
+  .tab.active { background:#2563eb; color:#fff; }
+  .tab:not(.active):hover { background:#f3f4f6; color:#374151; }
+  .group-card { border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; transition:border-color .15s; }
+  .group-card:hover { border-color:#d1d5db; }
+  .group-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; cursor:pointer; background:#fff; }
+  .group-header:hover { background:#f9fafb; }
+  .feedback-item { padding:12px 16px; border-top:1px solid #f3f4f6; background:#fafafa; }
+  .feedback-item:hover { background:#f3f4f6; }
+  .badge { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; border-radius:99px; font-size:11px; font-weight:700; padding:0 6px; }
+  input[type=password], input[type=text], input[type=date] {
+    border:1px solid #d1d5db; border-radius:8px; padding:8px 12px; font-size:13px; width:100%; outline:none; transition:border-color .15s;
+  }
+  input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- 별 배경 -->
+<div id="stars-bg"></div>
+<div id="stars1" class="stars-layer" style="width:1px;height:1px;animation:animStar 50s linear infinite"></div>
+<div id="stars2" class="stars-layer" style="width:2px;height:2px;animation:animStar 100s linear infinite"></div>
+<div id="stars3" class="stars-layer" style="width:3px;height:3px;animation:animStar 150s linear infinite"></div>
+<script>
+function genShadows(n,size){
+  let v=`${~~(Math.random()*2000)}px ${~~(Math.random()*2000)}px #FFF`;
+  for(let i=1;i<n;i++) v+=`,${~~(Math.random()*2000)}px ${~~(Math.random()*2000)}px #FFF`;
+  return v;
+}
+document.getElementById('stars1').style.boxShadow=genShadows(700);
+document.getElementById('stars2').style.boxShadow=genShadows(200);
+document.getElementById('stars3').style.boxShadow=genShadows(100);
+</script>
+
+<div id="app-root">
+<div class="max-w-4xl mx-auto px-4 py-8">
+
+  <!-- 헤더 -->
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-gray-900">채널톡 피드백 분석</h1>
+    <p class="text-sm text-gray-500 mt-0.5">FeedbackBot 메시지를 수집하고 AI로 카테고리별 분류·요약합니다.</p>
+  </div>
+
+  <!-- STEP 1: API 키 입력 -->
+  <div id="step-api" class="card p-6 mb-5">
+    <h2 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+      <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">1</span>
+      API 키 설정
+    </h2>
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">채널톡 API Key</label>
+        <input type="password" id="ct-key" placeholder="x-access-key" value="••••••••••••••••"/>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">채널톡 API Secret</label>
+        <input type="password" id="ct-secret" placeholder="x-access-secret" value="••••••••••••••••"/>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">채널톡 Group ID <span class="text-gray-400">(피드백 채널)</span></label>
+        <input type="text" id="ct-group" placeholder="group_xxxxxxxx" value="group_feedback_01"/>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">Anthropic API Key</label>
+        <input type="password" id="anthropic-key" placeholder="sk-ant-..." value="••••••••••••••••"/>
+      </div>
+    </div>
+    <p class="text-xs text-gray-400 mt-3 flex items-center gap-1">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      키는 브라우저 세션에만 저장되며 서버로 전송되지 않습니다.
+    </p>
+  </div>
+
+  <!-- STEP 2: 기간 선택 -->
+  <div id="step-date" class="card p-5 mb-5">
+    <h2 class="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+      <span class="w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-bold">2</span>
+      조회 기간
+    </h2>
+    <div class="flex flex-wrap items-end gap-3">
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">시작일</label>
+        <input type="date" value="2026-02-20" style="width:auto"/>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">종료일</label>
+        <input type="date" value="2026-03-22" style="width:auto"/>
+      </div>
+      <button onclick="runDemo()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors h-[38px]">
+        피드백 분석
+      </button>
+    </div>
+  </div>
+
+  <!-- 로딩 -->
+  <div id="loading" class="hidden items-center gap-3 text-sm text-gray-500 mb-5 card p-4">
+    <svg class="spin w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+    <span id="loading-text">채널톡에서 피드백 수집 중...</span>
+  </div>
+
+  <!-- 결과 -->
+  <div id="result" class="hidden fade-in">
+
+    <!-- 요약 -->
+    <div class="grid grid-cols-3 gap-3 mb-5">
+      <div class="card p-4">
+        <p class="text-xs text-gray-500">총 피드백</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1" id="total-count">24건</p>
+        <p class="text-xs text-gray-400 mt-0.5">2026.02.20 – 03.22</p>
+      </div>
+      <div class="card p-4">
+        <p class="text-xs text-gray-500">유사 피드백 그룹</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1" id="group-count">11개</p>
+        <p class="text-xs text-gray-400 mt-0.5">AI 자동 묶음</p>
+      </div>
+      <div class="card p-4">
+        <p class="text-xs text-gray-500">가장 많은 그룹</p>
+        <p class="text-sm font-semibold text-gray-900 mt-1 leading-snug" id="top-group">팔로업 알림 세분화</p>
+        <p class="text-xs text-blue-600 mt-0.5 font-medium" id="top-count">5건</p>
+      </div>
+    </div>
+
+    <!-- 카테고리 탭 -->
+    <div class="flex gap-1.5 overflow-x-auto pb-1 mb-4 scrollbar-none">
+      <button class="tab active" onclick="switchTab(this,'전체')">전체 <span class="ml-1 opacity-70" id="tab-count-전체">24</span></button>
+      <button class="tab" onclick="switchTab(this,'AI')">AI <span class="ml-1 opacity-70">5</span></button>
+      <button class="tab" onclick="switchTab(this,'워크플로우')">워크플로우 <span class="ml-1 opacity-70">6</span></button>
+      <button class="tab" onclick="switchTab(this,'유저챗')">유저챗 <span class="ml-1 opacity-70">5</span></button>
+      <button class="tab" onclick="switchTab(this,'통계(리포트)')">통계(리포트) <span class="ml-1 opacity-70">3</span></button>
+      <button class="tab" onclick="switchTab(this,'전화')">전화 <span class="ml-1 opacity-70">2</span></button>
+      <button class="tab" onclick="switchTab(this,'팀챗')">팀챗 <span class="ml-1 opacity-70">2</span></button>
+      <button class="tab" onclick="switchTab(this,'기타')">기타 <span class="ml-1 opacity-70">1</span></button>
+    </div>
+
+    <!-- 그룹 목록 -->
+    <div id="group-list" class="space-y-2"></div>
+  </div>
+
+</div>
+
+<script>
+const CATEGORY_COLORS = {
+  'AI': '#8b5cf6', '워크플로우': '#f59e0b', '유저챗': '#3b82f6',
+  '통계(리포트)': '#10b981', '전화': '#ef4444', '팀챗': '#06b6d4', '기타': '#9ca3af'
+};
+
+const groups = [
+  {
+    id:'g1', category:'워크플로우', title:'팔로업 알림 세분화 요청', count:5,
+    summary:'워크플로우별 팔로업 알림 on/off 및 항목 조절 기능 요청',
+    feedbacks:[
+      { id:'f1', title:'[KR] 워크플로우별 팔로업 알림 on/off 및 항목 조절 기능', channel:'오늘수거', plan:'growth', date:'2026-03-12', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc123' },
+      { id:'f2', title:'[KR] 특정 고객에게 팔로업 알림 안 보내는 기능', channel:'클리니어', plan:'growth', date:'2026-03-09', author:'터너', threadUrl:'https://desk.channel.io/threads/abc124' },
+      { id:'f3', title:'[KR] 팔로업 알림 빈도 조절이 필요해요', channel:'오늘수거', plan:'starter', date:'2026-03-06', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc125' },
+      { id:'f4', title:'[KR] 팀별 팔로업 알림 설정 분리', channel:'마켓컬리', plan:'enterprise', date:'2026-03-04', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc126' },
+      { id:'f5', title:'[KR] 특정 시간대에만 팔로업 알림 받기', channel:'클리니어', plan:'growth', date:'2026-03-02', author:'터너', threadUrl:'https://desk.channel.io/threads/abc127' },
+    ]
+  },
+  {
+    id:'g2', category:'유저챗', title:'상담 종료 후 이력 유지 요청', count:4,
+    summary:'고객이 상담 나가기 후에도 상담 목록에 남아 있어야 한다는 요청',
+    feedbacks:[
+      { id:'f6', title:'[KR] 고객이 상담 나가기 해도 목록에 남았으면 좋겠어요', channel:'클리니어', plan:'growth', date:'2026-03-11', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc128' },
+      { id:'f7', title:'[KR] 종료된 상담을 다시 열 수 있는 기능', channel:'배민', plan:'enterprise', date:'2026-03-08', author:'터너', threadUrl:'https://desk.channel.io/threads/abc129' },
+      { id:'f8', title:'[KR] 상담 히스토리 내보내기', channel:'스타트업A', plan:'starter', date:'2026-03-05', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc130' },
+      { id:'f9', title:'[KR] 상담 메모 강화 요청', channel:'오늘수거', plan:'growth', date:'2026-03-02', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc131' },
+    ]
+  },
+  {
+    id:'g3', category:'AI', title:'AI 답변 정확도 개선', count:3,
+    summary:'AI 자동 답변이 맥락을 잘못 이해하는 경우 개선 요청',
+    feedbacks:[
+      { id:'f10', title:'[KR] AI 답변이 질문 맥락을 잘못 파악해요', channel:'마켓컬리', plan:'enterprise', date:'2026-03-10', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc132' },
+      { id:'f11', title:'[KR] AI 자동분류 카테고리 추가 요청', channel:'배민', plan:'enterprise', date:'2026-03-07', author:'터너', threadUrl:'https://desk.channel.io/threads/abc133' },
+      { id:'f12', title:'[KR] AI 답변 톤 설정 기능', channel:'오늘수거', plan:'growth', date:'2026-03-04', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc134' },
+    ]
+  },
+  {
+    id:'g4', category:'통계(리포트)', title:'리포트 커스터마이징', count:3,
+    summary:'원하는 지표만 골라서 리포트를 만들 수 있게 해달라는 요청',
+    feedbacks:[
+      { id:'f13', title:'[KR] 리포트 지표 커스터마이징 기능', channel:'마켓컬리', plan:'enterprise', date:'2026-03-09', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc135' },
+      { id:'f14', title:'[KR] 데이터 CSV 내보내기 기능', channel:'배민', plan:'enterprise', date:'2026-03-06', author:'터너', threadUrl:'https://desk.channel.io/threads/abc136' },
+      { id:'f15', title:'[KR] 주간/월간 리포트 자동 발송', channel:'클리니어', plan:'growth', date:'2026-03-03', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc137' },
+    ]
+  },
+  {
+    id:'g5', category:'AI', title:'AI 자동 분류 개선', count:2,
+    summary:'AI가 상담을 잘못된 카테고리로 분류하는 경우 수정 요청',
+    feedbacks:[
+      { id:'f16', title:'[KR] AI 상담 분류 오류 수정', channel:'스타트업A', plan:'starter', date:'2026-03-08', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc138' },
+      { id:'f17', title:'[KR] AI 분류 학습 피드백 기능', channel:'오늘수거', plan:'growth', date:'2026-03-05', author:'터너', threadUrl:'https://desk.channel.io/threads/abc139' },
+    ]
+  },
+  {
+    id:'g6', category:'유저챗', title:'채팅 UI 개선', count:2,
+    summary:'채팅창 크기 조절 및 미리보기 텍스트 길이 개선 요청',
+    feedbacks:[
+      { id:'f18', title:'[KR] 채팅 목록 미리보기 텍스트가 너무 짧아요', channel:'모두의셔틀', plan:'starter', date:'2026-03-07', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc140' },
+      { id:'f19', title:'[KR] 상담 창 크기 조절 기능', channel:'스타트업A', plan:'starter', date:'2026-03-04', author:'터너', threadUrl:'https://desk.channel.io/threads/abc141' },
+    ]
+  },
+  {
+    id:'g7', category:'워크플로우', title:'워크플로우 조건 추가', count:2,
+    summary:'워크플로우 분기 조건을 더 다양하게 설정할 수 있게 해달라는 요청',
+    feedbacks:[
+      { id:'f20', title:'[KR] 워크플로우 조건에 고객 등급 추가', channel:'마켓컬리', plan:'enterprise', date:'2026-03-11', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc142' },
+      { id:'f21', title:'[KR] 워크플로우 A/B 테스트 기능', channel:'배민', plan:'enterprise', date:'2026-03-08', author:'터너', threadUrl:'https://desk.channel.io/threads/abc143' },
+    ]
+  },
+  {
+    id:'g8', category:'전화', title:'통화 녹음 및 전사 기능', count:2,
+    summary:'전화 상담 녹음 및 텍스트 변환 기능 요청',
+    feedbacks:[
+      { id:'f22', title:'[KR] 전화 상담 자동 녹음 기능', channel:'클리니어', plan:'growth', date:'2026-03-10', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc144' },
+      { id:'f23', title:'[KR] 통화 내용 텍스트 전사 기능', channel:'오늘수거', plan:'growth', date:'2026-03-07', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc145' },
+    ]
+  },
+  {
+    id:'g9', category:'팀챗', title:'팀챗 알림 커스터마이징', count:2,
+    summary:'특정 키워드나 멘션 시에만 알림을 받고 싶다는 요청',
+    feedbacks:[
+      { id:'f24', title:'[KR] 팀챗 키워드 알림 기능', channel:'배민', plan:'enterprise', date:'2026-03-09', author:'터너', threadUrl:'https://desk.channel.io/threads/abc146' },
+      { id:'f25', title:'[KR] 팀챗 멘션 알림만 받기', channel:'마켓컬리', plan:'enterprise', date:'2026-03-06', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc147' },
+    ]
+  },
+  {
+    id:'g10', category:'유저챗', title:'검색 및 필터 강화', count:2,
+    summary:'상담 내용 전문 검색 및 날짜 필터 기능 요청',
+    feedbacks:[
+      { id:'f26', title:'[KR] 상담 내용 전문 검색 기능', channel:'클리니어', plan:'growth', date:'2026-03-08', author:'주피터', threadUrl:'https://desk.channel.io/threads/abc148' },
+      { id:'f27', title:'[KR] 날짜 범위 필터 기능', channel:'배민', plan:'enterprise', date:'2026-03-05', author:'터너', threadUrl:'https://desk.channel.io/threads/abc149' },
+    ]
+  },
+  {
+    id:'g11', category:'기타', title:'기타 개선 요청', count:1,
+    summary:'특정 카테고리에 속하지 않는 기타 개선 요청',
+    feedbacks:[
+      { id:'f28', title:'[KR] 다크모드 지원 요청', channel:'스타트업A', plan:'starter', date:'2026-03-06', author:'베이지', threadUrl:'https://desk.channel.io/threads/abc150' },
+    ]
+  },
+];
+
+let currentTab = '전체';
+let openGroups = new Set();
+
+function runDemo() {
+  const loading = document.getElementById('loading');
+  const result = document.getElementById('result');
+  loading.classList.remove('hidden'); loading.classList.add('flex');
+  result.classList.add('hidden');
+  setTimeout(() => { document.getElementById('loading-text').textContent = 'Claude AI로 유사 피드백 묶는 중...'; }, 1500);
+  setTimeout(() => {
+    loading.classList.add('hidden'); loading.classList.remove('flex');
+    result.classList.remove('hidden'); result.classList.add('fade-in');
+    renderGroups(currentTab);
+  }, 2800);
+}
+
+function switchTab(el, tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentTab = tab;
+  renderGroups(tab);
+}
+
+function renderGroups(tab) {
+  const filtered = tab === '전체' ? groups : groups.filter(g => g.category === tab);
+  const sorted = [...filtered].sort((a,b) => b.count - a.count);
+  const container = document.getElementById('group-list');
+  if (sorted.length === 0) {
+    container.innerHTML = '<p class="text-sm text-gray-400 text-center py-10">해당 카테고리의 피드백이 없습니다.</p>';
+    return;
+  }
+  container.innerHTML = sorted.map(g => {
+    const color = CATEGORY_COLORS[g.category] || '#9ca3af';
+    const isOpen = openGroups.has(g.id);
+    return `
+    <div class="group-card">
+      <div class="group-header" onclick="toggleGroup('${g.id}')">
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="badge text-white flex-shrink-0" style="background:${color}">${g.count}</span>
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-gray-800 truncate">${g.title}</p>
+            <p class="text-xs text-gray-400 mt-0.5 truncate">${g.summary}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0 ml-3">
+          <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:${color}18;color:${color}">${g.category}</span>
+          <svg class="w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}" id="arrow-${g.id}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+        </div>
+      </div>
+      <div id="items-${g.id}" class="${isOpen ? '' : 'hidden'}">
+        ${g.feedbacks.map(f => `
+          <div class="feedback-item">
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-xs text-gray-700 leading-relaxed flex-1">${f.title}</p>
+              <a href="${f.threadUrl}" target="_blank"
+                class="flex-shrink-0 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 font-medium whitespace-nowrap">
+                스레드
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+              </a>
+            </div>
+            <div class="flex flex-wrap gap-1.5 mt-2">
+              <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">${f.channel}</span>
+              <span class="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded">${f.plan}</span>
+              <span class="text-xs text-gray-400">${f.date} · @${f.author}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleGroup(id) {
+  if (openGroups.has(id)) openGroups.delete(id);
+  else openGroups.add(id);
+  renderGroups(currentTab);
+}
+</script>
+</div><!-- /app-root -->
+</body>
+</html>
